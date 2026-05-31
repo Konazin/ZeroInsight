@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 
 from playwright.async_api import Page
 
-from automacao_posts.config import Settings
+from zero_insight.config import Settings
 
 
 async def capture_dashboard_screenshot(page: Page, settings: Settings) -> Path:

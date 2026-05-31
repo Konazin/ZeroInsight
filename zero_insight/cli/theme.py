@@ -1,4 +1,4 @@
-"""Tema visual compartilhado do terminal."""
+﻿"""Tema visual compartilhado do terminal."""
 
 from rich.console import Console
 from rich.theme import Theme

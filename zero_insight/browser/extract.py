@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from typing import Any
 
 from playwright.async_api import Page
 
-from automacao_posts.config import Settings
+from zero_insight.config import Settings
 
 
 def _parse_br_number(text: str) -> float:

@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 
 REM Inicia o Brave com depuracao remota (CDP) na porta 9222.
-REM Mantenha esta janela aberta enquanto usa o automacao-posts.
+REM Mantenha esta janela aberta enquanto usa o ZeroInsight.
 
 set "CDP_PORT=9222"
 set "BRAVE_EXE="

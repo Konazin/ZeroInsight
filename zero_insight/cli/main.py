@@ -1,4 +1,4 @@
-"""CLI: menu interativo e comandos diretos."""
+﻿"""CLI: menu interativo e comandos diretos."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 from rich.panel import Panel
 from rich.table import Table
 
-from automacao_posts.cli.theme import ICONS, console
+from zero_insight.cli.theme import ICONS, console
 
 
 def configure_stdio() -> None:
@@ -22,9 +22,9 @@ def configure_stdio() -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="automacao-posts",
+        prog="zero-insight",
         description=(
-            "Automacao de posts para startup juridica: "
+            "ZeroInsight — startup juridica: "
             "dashboard Dino -> screenshot -> Groq Vision -> blog Markdown."
         ),
     )
@@ -34,8 +34,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_check() -> int:
-    from automacao_posts.config import Settings
-    from automacao_posts.pipeline import test_cdp_sync, test_groq_sync
+    from zero_insight.config import Settings
+    from zero_insight.pipeline import test_cdp_sync, test_groq_sync
 
     settings = Settings.from_env()
     console.print(Panel("[step]Verificando ambiente...[/step]", border_style="blue"))
@@ -67,8 +67,8 @@ def cmd_check() -> int:
 
 
 def cmd_run() -> int:
-    from automacao_posts.config import Settings
-    from automacao_posts.pipeline import run_pipeline_sync
+    from zero_insight.config import Settings
+    from zero_insight.pipeline import run_pipeline_sync
 
     settings = Settings.from_env()
     if not settings.groq_api_key.strip():
@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.run:
         return cmd_run()
 
-    from automacao_posts.cli.terminal import launch
+    from zero_insight.cli.terminal import launch
 
     launch()
     return 0

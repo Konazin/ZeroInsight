@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import base64
 import json
@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from automacao_posts.config import Settings
+from zero_insight.config import Settings
 
 BLOG_SCHEMA = """
 {

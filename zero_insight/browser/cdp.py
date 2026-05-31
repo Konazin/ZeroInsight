@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import httpx
 from playwright.async_api import Browser, Page
 
-from automacao_posts.config import Settings
+from zero_insight.config import Settings
 
 
 async def find_target_page(browser: Browser, settings: Settings) -> Page:

@@ -1,4 +1,4 @@
-from automacao_posts.pipeline.runner import (
+﻿from zero_insight.pipeline.runner import (
     run_pipeline,
     run_pipeline_sync,
     test_cdp_sync,

@@ -1,4 +1,4 @@
-"""Executa coroutines a partir de código síncrono (menu, CLI, IDEs com loop ativo)."""
+﻿"""Executa coroutines a partir de código síncrono (menu, CLI, IDEs com loop ativo)."""
 
 from __future__ import annotations
 

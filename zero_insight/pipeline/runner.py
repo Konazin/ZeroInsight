@@ -1,17 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
 
 from playwright.async_api import async_playwright
 
-from automacao_posts.ai import generate_blog_post, save_blog_markdown, test_groq
-from automacao_posts.browser import extract_data, find_target_page, test_cdp
-from automacao_posts.browser.extract import has_real_metrics, is_placeholder_payload
-from automacao_posts.capture import capture_dashboard_screenshot
-from automacao_posts.config import Settings
-from automacao_posts.core import LogFn, run_coro
-from automacao_posts.pipeline.storage import append_jsonl
+from zero_insight.ai import generate_blog_post, save_blog_markdown, test_groq
+from zero_insight.browser import extract_data, find_target_page, test_cdp
+from zero_insight.browser.extract import has_real_metrics, is_placeholder_payload
+from zero_insight.capture import capture_dashboard_screenshot
+from zero_insight.config import Settings
+from zero_insight.core import LogFn, run_coro
+from zero_insight.pipeline.storage import append_jsonl
 
 
 async def _sleep(seconds: float) -> None:

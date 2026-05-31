@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import httpx
 
-from automacao_posts.config import Settings
+from zero_insight.config import Settings
 
 
 async def test_groq(settings: Settings) -> tuple[bool, str]:

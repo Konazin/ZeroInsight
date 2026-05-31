@@ -1,0 +1,44 @@
+LICENÇA DE USO RESTRITO — ZeroInsight
+==========================================
+
+Copyright (c) 2026 Requisite Legal Tech. Todos os direitos reservados.
+
+Este software foi desenvolvido sob encomenda e para uso controlado da
+Requisite Legal Tech ("Licenciante"). O código-fonte pode estar disponível
+em repositório privado ou restrito, mas isso não implica liberação para o
+público em geral.
+
+1. CONCESSÃO DE USO
+   É concedida licença limitada, não exclusiva e revogável apenas a
+   colaboradores, prestadores e sistemas expressamente autorizados pelo
+   Licenciante para operar, manter e evoluir o software no âmbito das
+   atividades da empresa.
+
+2. USO PROIBIDO SEM AUTORIZAÇÃO
+   É vedado, sem autorização prévia e por escrito do Licenciante:
+   - uso por terceiros não autorizados;
+   - redistribuição, sublicenciamento ou comercialização;
+   - publicação do código ou de derivados como software aberto;
+   - uso para fins alheios às operações aprovadas pela empresa.
+
+3. PROPRIEDADE INTELECTUAL
+   O software, sua documentação, prompts, fluxos e integrações permanecem
+   propriedade do Licenciante ou de quem detiver os direitos acordados
+   contratualmente. Nenhuma cláusula aqui transfere titularidade.
+
+4. DADOS E CREDENCIAIS
+   Chaves de API, sessões de navegador, capturas de tela e conteúdos
+   gerados são confidenciais. O operador deve seguir as políticas internas
+   de segurança da informação e a legislação aplicável (incluindo LGPD).
+
+5. ISENÇÃO DE GARANTIAS
+   O software é fornecido "no estado em que se encontra", sem garantias
+   expressas ou implícitas. O Licenciante não se responsabiliza por danos
+   decorrentes de uso não autorizado ou fora do escopo aprovado.
+
+6. CONTATO
+   Dúvidas sobre permissão de uso: equipe de tecnologia / jurídico da
+   Requisite Legal Tech.
+
+Para uso externo, fork público ou licenciamento diferente, solicite
+autorização formal ao Licenciante.

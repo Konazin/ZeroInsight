@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sys
@@ -19,9 +19,9 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from automacao_posts.cli.theme import ICONS, console
-from automacao_posts.config import GROQ_MODELS, GROQ_VISION_MODELS, Settings, reload_settings, save_settings
-from automacao_posts.pipeline import run_pipeline_sync, test_cdp_sync, test_groq_sync
+from zero_insight.cli.theme import ICONS, console
+from zero_insight.config import GROQ_MODELS, GROQ_VISION_MODELS, Settings, reload_settings, save_settings
+from zero_insight.pipeline import run_pipeline_sync, test_cdp_sync, test_groq_sync
 
 LEVEL_STYLE = {
     "INFO": "info",
@@ -104,7 +104,7 @@ def _banner() -> None:
     grid.add_column(ratio=1)
     grid.add_row(
         Text.from_markup(
-            "[accent]AUTOMACAO POSTS[/accent]\n"
+            "[accent]ZeroInsight[/accent]\n"
             "[dim]Brave CDP  ->  extracao  ->  screenshot  ->  Groq  ->  blog[/dim]"
         )
     )
@@ -499,7 +499,7 @@ class TerminalApp:
                         "[dim]python main.py[/dim]\n"
                         "[dim]python main.py --check[/dim]\n"
                         "[dim]python main.py --run[/dim]\n"
-                        "[dim]python -m automacao_posts[/dim]\n\n"
+                        "[dim]python -m zero_insight[/dim]\n\n"
                         f"[bold]CDP[/bold]\n"
                         f"Porta padrao: {self.settings.cdp_port}",
                         title="[menu]Referencia[/menu]",
