@@ -203,7 +203,7 @@ Se o menu com setas falhar (alguns terminais do IDE), use o **menu numérico** a
 - Credenciais apenas em variáveis de ambiente
 - Sessão iniciada pelo usuário no navegador
 - Dados de dashboard e posts podem conter informação operacional — tratar como **confidencial**
-- Uso alinhado às políticas internas da Requisite Legal Tech e à LGPD
+- Uso alinhado às políticas internas da RequisiteRPV e à LGPD
 
 ---
 
@@ -245,7 +245,7 @@ Módulos principais:
 
 ## Licença e propriedade
 
-Software proprietário desenvolvido para a **Requisite Legal Tech**. Uso restrito conforme [`LICENSE`](LICENSE).
+Software proprietário desenvolvido para a **RequisiteRPV LTDA**. Uso restrito conforme [`LICENSE`](LICENSE).
 
 Não utilize, copie ou distribua este projeto fora do escopo autorizado pela empresa.
 
@@ -253,4 +253,4 @@ Não utilize, copie ou distribua este projeto fora do escopo autorizado pela emp
 
 ## Contato interno
 
-Para liberação de acesso, dúvidas de compliance ou evolução do produto, contate a equipe de tecnologia / responsável pelo projeto na Requisite Legal Tech.
+Para liberação de acesso, dúvidas de compliance ou evolução do produto, contate a equipe de tecnologia / responsável pelo projeto na RequisiteRPV LTDA.
