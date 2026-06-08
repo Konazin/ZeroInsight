@@ -1,0 +1,641 @@
+Você está atuando como engenheiro de software sênior no repositório Python ZeroInsight.
+
+Contexto atual:
+O ZeroInsight já possui:
+- pipeline CLI;
+- UI desktop em PySide6;
+- geração de posts;
+- geração de pacotes de Instagram Stories;
+- renderização visual;
+- Brave/CDP;
+- suporte a instalação/inicialização do Brave;
+- empacotamento Windows;
+- estrutura modular com services, pipeline, content, image, render, qa e desktop.
+
+Nova tarefa:
+Evoluir o ZeroInsight para gerar posts e Stories de Instagram com base em um documento de comunicação visual da empresa, em formato PDF ou DOCX, e permitir que o usuário escolha qual IA usar para texto e imagem, incluindo providers conhecidos e um provider customizado com endpoint e API key.
+
+Objetivo principal:
+Adicionar uma camada de Brand Intelligence / Comunicação Visual que leia um PDF ou DOCX institucional da empresa, extraia diretrizes de marca e aplique essas diretrizes na geração de:
+- roteiro/copy do post;
+- prompt visual;
+- imagem base;
+- layout final;
+- CTA;
+- estilo textual;
+- cores;
+- restrições de linguagem;
+- revisão/compliance.
+
+Também adicionar uma camada de AI Providers para permitir troca flexível entre modelos de texto, visão e imagem.
+
+Não quebre:
+- CLI existente;
+- UI existente;
+- geração de blog;
+- geração de Stories;
+- Brave/CDP;
+- build Windows;
+- mocks já existentes.
+
+Não implemente:
+- publicação automática no Instagram;
+- login automático em serviços externos;
+- bypass de captcha/MFA;
+- hardcode de secrets;
+- dependência obrigatória de API externa para o app funcionar;
+- download automático de modelos grandes;
+- armazenamento inseguro desnecessário de documentos sensíveis.
+
+Parte 1 — Leitura de PDF/DOCX de comunicação visual
+
+Criar módulo:
+
+zero_insight/
+  brand/
+    __init__.py
+    document_loader.py
+    brand_extractor.py
+    brand_profile.py
+    brand_assets.py
+    brand_validator.py
+    brand_prompt_builder.py
+    cache.py
+
+Funcionalidade:
+1. Permitir selecionar/importar um arquivo:
+   - .pdf
+   - .docx
+
+2. Extrair conteúdo textual:
+   - PDF: usar PyMuPDF ou biblioteca leve equivalente.
+   - DOCX: usar python-docx.
+   - Não usar OCR no MVP, exceto se já houver dependência disponível. Se o PDF for imagem escaneada, avisar claramente que o documento não possui texto extraível.
+
+3. Extrair imagens/assets quando possível:
+   - logos;
+   - imagens internas;
+   - exemplos visuais;
+   - paleta aparente, se possível.
+   
+   Se a extração de assets for complexa, implementar o básico:
+   - salvar imagens extraídas em uma pasta da campanha/marca;
+   - permitir escolher manualmente o logo na UI.
+
+4. Gerar um BrandProfile estruturado em JSON.
+
+Modelo mínimo:
+
+BrandProfile:
+- brand_name: str
+- source_document_path: str
+- created_at: str
+- summary: str
+- tone_of_voice: list[str]
+- forbidden_terms: list[str]
+- preferred_terms: list[str]
+- visual_style: list[str]
+- color_palette: list[dict]
+  - name
+  - hex
+  - usage
+- typography_notes: list[str]
+- logo_usage_notes: list[str]
+- layout_rules: list[str]
+- image_style_rules: list[str]
+- content_rules: list[str]
+- compliance_rules: list[str]
+- target_audience: list[str]
+- cta_style: list[str]
+- examples: list[dict]
+- raw_extracted_text_excerpt: str
+
+5. Criar fallback determinístico:
+Se nenhuma IA estiver configurada, o sistema deve conseguir gerar um BrandProfile básico a partir de heurísticas:
+- detectar nome da marca por título/cabeçalho se possível;
+- detectar cores hex no texto;
+- detectar termos recorrentes;
+- detectar se o documento fala de tom, logo, paleta, tipografia, uso incorreto, etc.;
+- gerar profile parcial com status "needs_review".
+
+6. Criar extração via IA opcional:
+Se houver provider de texto configurado, enviar o conteúdo extraído para IA e pedir um BrandProfile estruturado.
+A resposta deve ser validada antes de salvar.
+Se a IA retornar JSON inválido, tentar corrigir uma vez; se falhar, salvar erro legível.
+
+7. Salvar perfis em:
+
+%APPDATA%/ZeroInsight/brands/
+ou diretório equivalente do projeto em modo dev.
+
+Exemplo de saída:
+brands/
+  requisite/
+    brand_profile.json
+    source/
+      manual_comunicacao_visual.pdf
+    assets/
+      logo_01.png
+      extracted_image_01.png
+
+Parte 2 — Aplicação da marca na geração de posts/Stories
+
+Modificar a pipeline de Stories e posts para aceitar um BrandProfile.
+
+Novo comportamento:
+- O usuário escolhe uma marca/perfil antes de gerar.
+- O sistema usa o BrandProfile para:
+  - ajustar tom de voz;
+  - evitar termos proibidos;
+  - usar cores da marca;
+  - usar logo quando disponível;
+  - adaptar CTA;
+  - orientar prompt visual;
+  - validar se o conteúdo gerado respeita a comunicação visual.
+
+Fluxo recomendado:
+Documento PDF/DOCX
+→ DocumentLoader
+→ BrandExtractor
+→ BrandProfile JSON
+→ BrandPromptBuilder
+→ Content Planner
+→ Image Prompt Builder
+→ Image Provider
+→ Renderer
+→ Brand Validator
+→ Output final
+
+Atualizar StoryBrief:
+Adicionar:
+- brand_profile_id: str | None
+- brand_profile_path: str | None
+- ai_text_provider: str | None
+- ai_image_provider: str | None
+
+Atualizar StoryManifest:
+Adicionar:
+- brand_profile_used
+- ai_providers_used
+- brand_validation
+
+O renderizador deve:
+- aplicar cores do BrandProfile;
+- aplicar nome da marca;
+- aplicar logo se existir;
+- respeitar área segura;
+- continuar renderizando texto via template, não dentro da imagem gerada pela IA.
+
+Muito importante:
+A IA de imagem deve gerar imagem base/fundo/ilustração. O texto final deve ser aplicado pelo renderer do ZeroInsight para evitar erros de tipografia.
+
+Parte 3 — Providers de IA
+
+Criar arquitetura:
+
+zero_insight/
+  ai_providers/
+    __init__.py
+    base.py
+    registry.py
+    config.py
+    text/
+      __init__.py
+      mock_text_provider.py
+      openai_text_provider.py
+      anthropic_text_provider.py
+      gemini_text_provider.py
+      groq_text_provider.py
+      custom_text_provider.py
+    image/
+      __init__.py
+      mock_image_provider.py
+      openai_image_provider.py
+      stability_image_provider.py
+      replicate_image_provider.py
+      custom_image_provider.py
+    vision/
+      __init__.py
+      mock_vision_provider.py
+      openai_vision_provider.py
+      gemini_vision_provider.py
+      groq_vision_provider.py
+      custom_vision_provider.py
+
+Se o projeto já tem módulo ai/ ou image/providers/, não duplique sem necessidade. Faça adaptação limpa ou migração compatível.
+
+Interfaces mínimas:
+
+TextProvider:
+- name: str
+- generate_text(prompt: str, system_prompt: str | None = None, temperature: float = 0.4) -> str
+- generate_json(prompt: str, schema_hint: dict | None = None) -> dict
+
+ImageProvider:
+- name: str
+- generate_image(prompt: str, width: int, height: int, output_path: Path, negative_prompt: str | None = None) -> Path
+
+VisionProvider:
+- name: str
+- analyze_image(image_path: Path, prompt: str) -> str
+
+ProviderConfig:
+- provider_type: "text" | "image" | "vision"
+- provider_name: str
+- model: str
+- api_key_env: str | None
+- api_key_value: str | None
+- base_url: str | None
+- endpoint: str | None
+- extra_headers: dict
+- extra_params: dict
+
+Providers obrigatórios no MVP:
+1. MockTextProvider
+2. MockImageProvider
+3. MockVisionProvider
+4. CustomTextProvider
+5. CustomImageProvider
+6. CustomVisionProvider
+
+Providers conhecidos:
+Criar adapters preparados para:
+- OpenAI
+- Anthropic
+- Gemini
+- Groq
+- Replicate
+- Stability
+
+Mas não obrigar todos a funcionar se SDK não estiver instalado.
+Regra:
+- Preferir chamadas HTTP com requests/httpx quando simples.
+- Evitar dependência obrigatória de vários SDKs.
+- Se um provider conhecido não tiver dependência/configuração, retornar erro amigável:
+  "Provider configurado, mas credenciais ou dependências não foram encontradas."
+
+Provider custom:
+O usuário deve conseguir informar:
+- nome do provider;
+- tipo: texto, imagem ou visão;
+- endpoint/base URL;
+- API key;
+- modelo;
+- método HTTP, default POST;
+- headers extras;
+- formato de payload;
+- mapeamento da resposta.
+
+Para simplificar o MVP:
+Implementar custom provider em modo OpenAI-compatible primeiro.
+
+CustomTextProvider:
+- endpoint/base_url
+- api_key
+- model
+- usar formato compatível com:
+  POST /chat/completions
+  messages: system/user
+  model
+  temperature
+
+CustomImageProvider:
+- endpoint/base_url
+- api_key
+- model
+- prompt
+- width
+- height
+- Deve suportar dois modos de resposta:
+  1. URL de imagem
+  2. base64 de imagem
+
+CustomVisionProvider:
+- endpoint/base_url
+- api_key
+- model
+- prompt + imagem em base64
+- resposta textual
+
+Na UI, deixar claro:
+"Custom provider usa formato OpenAI-compatible no MVP."
+
+Parte 4 — UI/UX
+
+Atualizar a UI desktop com novas telas/seções.
+
+Adicionar sidebar:
+- Marcas
+- IA / Providers
+
+Tela "Marcas":
+Funcionalidades:
+1. Botão "Importar manual de comunicação visual"
+2. Aceitar PDF/DOCX
+3. Mostrar status da extração
+4. Mostrar BrandProfile gerado em forma editável:
+   - nome da marca
+   - tom de voz
+   - cores
+   - termos preferidos
+   - termos proibidos
+   - regras visuais
+   - CTA
+   - observações de logo
+5. Permitir salvar perfil.
+6. Permitir editar manualmente o perfil antes de usar.
+7. Permitir escolher logo manualmente.
+8. Botão "Validar perfil"
+9. Botão "Usar esta marca como padrão"
+
+Tela "IA / Providers":
+Funcionalidades:
+1. Escolher provider de texto padrão.
+2. Escolher provider de imagem padrão.
+3. Escolher provider de visão padrão.
+4. Cadastrar provider custom.
+5. Testar provider.
+6. Mostrar status:
+   - configurado
+   - sem API key
+   - erro de conexão
+   - OK
+7. Campos:
+   - provider
+   - model
+   - base URL / endpoint
+   - API key
+   - tipo
+8. Botão "Salvar configuração"
+9. Botão "Testar geração curta"
+
+Atualizar tela "Gerar Stories":
+Adicionar:
+- seletor de marca;
+- seletor de IA de texto;
+- seletor de IA de imagem;
+- checkbox "usar manual de comunicação visual";
+- preview do BrandProfile aplicado;
+- aviso caso o perfil precise de revisão.
+
+Atualizar tela "Gerar Post":
+Adicionar:
+- seletor de marca;
+- seletor de IA de texto;
+- checkbox "validar comunicação visual".
+
+UX obrigatória:
+- UI não pode travar durante importação/análise do documento.
+- Usar worker/thread.
+- Mostrar logs e progresso.
+- Erros devem ser acionáveis.
+- Se a IA falhar, oferecer fallback local/mock.
+- Nunca perder o arquivo original do usuário.
+- Não mandar documento para IA sem o usuário escolher provider externo e confirmar nas configurações.
+- Mostrar aviso:
+  "Ao usar uma IA externa, o conteúdo do documento poderá ser enviado ao provider configurado."
+
+Parte 5 — Configurações e segurança
+
+Atualizar settings:
+
+Config nova:
+- default_brand_profile_id
+- default_text_provider
+- default_image_provider
+- default_vision_provider
+- providers
+- allow_external_ai_for_brand_docs: bool
+
+Secrets:
+- Não versionar API keys.
+- Preferir .env local ou storage já usado no app.
+- Se salvar API key em config local, documentar limitação.
+- Nunca imprimir API key em logs.
+- Mascarar API key na UI:
+  sk-...abcd
+
+Logs:
+- Não logar documento completo.
+- Não logar prompt completo se contiver conteúdo sensível, exceto em modo debug explícito.
+- Logar apenas:
+  - provider usado
+  - status
+  - tempo
+  - erro resumido
+
+Parte 6 — Validação de marca
+
+Criar BrandValidator.
+
+Validar:
+- termos proibidos;
+- tom incompatível;
+- ausência de CTA;
+- ausência de logo quando obrigatório;
+- cores fora da paleta, quando template permitir;
+- promessa absoluta perigosa;
+- linguagem jurídica/financeira agressiva;
+- excesso de texto em Story;
+- contraste ruim, se possível.
+
+Status:
+- PASS
+- WARNING
+- FAIL
+
+Gerar no manifest:
+brand_validation:
+  status
+  warnings
+  errors
+  checked_at
+
+Parte 7 — Prompt builder
+
+Criar BrandPromptBuilder com prompts internos.
+
+Prompt para extrair BrandProfile de documento:
+
+Sistema:
+Você é um especialista em branding, comunicação visual e social media. Extraia diretrizes objetivas de comunicação visual a partir do documento fornecido. Responda apenas JSON válido.
+
+Usuário:
+Abaixo está o texto extraído de um manual/documento de comunicação visual. Gere um BrandProfile com campos:
+brand_name, summary, tone_of_voice, forbidden_terms, preferred_terms, visual_style, color_palette, typography_notes, logo_usage_notes, layout_rules, image_style_rules, content_rules, compliance_rules, target_audience, cta_style, examples.
+
+Regras:
+- Não invente informações ausentes.
+- Se algo não estiver explícito, use lista vazia ou marque como "não identificado".
+- Se encontrar cores hex, preserve.
+- Se encontrar nomes de fontes, preserve.
+- Se houver regras de uso incorreto, coloque em forbidden_terms ou layout_rules.
+- Se houver exemplos de linguagem, preserve de forma resumida.
+- Responda apenas JSON.
+
+Prompt para gerar copy de Story com BrandProfile:
+
+Sistema:
+Você é um copywriter de social media especializado em comunicação institucional, jurídica e financeira. Gere textos curtos, claros e seguros para Instagram Stories, respeitando o BrandProfile.
+
+Usuário:
+Tema:
+{topic}
+
+Objetivo:
+{objective}
+
+Público:
+{audience}
+
+CTA:
+{cta}
+
+BrandProfile:
+{brand_profile_json}
+
+Gere {slides} stories em JSON.
+Cada story deve ter:
+order, hook, body, cta, visual_idea, image_prompt, compliance_notes.
+
+Regras:
+- Não use termos proibidos.
+- Não prometa resultado garantido.
+- Não use linguagem sensacionalista.
+- Não invente dados jurídicos.
+- Texto do Story deve ser curto.
+- CTA deve ser claro.
+- O image_prompt deve orientar apenas imagem/fundo/ilustração, sem texto embutido.
+- Responda apenas JSON.
+
+Prompt para imagem:
+
+Gerar imagem base para Instagram Story 9:16.
+A imagem será usada como fundo/visual principal, sem texto embutido.
+Estilo da marca:
+{visual_style}
+Cores preferenciais:
+{color_palette}
+Tema:
+{topic}
+Ideia visual:
+{visual_idea}
+Regras:
+- Não inserir texto.
+- Não inserir logotipo fictício.
+- Não inserir marcas falsas.
+- Evitar elementos poluídos.
+- Composição limpa com espaço livre para texto.
+- Visual institucional, confiável e moderno.
+
+Parte 8 — CLI
+
+Adicionar sem quebrar comandos existentes:
+
+Importar marca:
+python main.py --import-brand-doc "manual.pdf"
+
+Importar marca com nome:
+python main.py --import-brand-doc "manual.pdf" --brand-name "Requisite"
+
+Gerar story com marca:
+python main.py --story --topic "RPV Federal" --slides 3 --brand "Requisite"
+
+Gerar post com marca:
+python main.py --run --brand "Requisite"
+
+Listar providers:
+python main.py --list-ai-providers
+
+Testar provider:
+python main.py --test-ai-provider text:custom
+
+Parte 9 — Dependências
+
+Atualizar requirements.txt conforme necessário:
+- PyMuPDF ou alternativa para PDF
+- python-docx
+- httpx ou requests, se ainda não existir
+- Pillow, se já não existir
+
+Não adicionar dependências muito pesadas sem necessidade.
+
+Parte 10 — README
+
+Atualizar README com:
+- como importar PDF/DOCX de comunicação visual;
+- como revisar BrandProfile;
+- como escolher IA;
+- como configurar provider custom;
+- como gerar Stories com marca;
+- como gerar post com marca;
+- limitações do MVP;
+- aviso sobre envio de documentos para IA externa;
+- segurança de API keys;
+- comandos CLI;
+- uso pela UI.
+
+Parte 11 — Build Windows
+
+Atualizar PyInstaller/Inno se necessário para incluir:
+- templates;
+- prompts;
+- assets;
+- módulos brand;
+- módulos ai_providers;
+- dependências de PDF/DOCX;
+- telas novas da UI.
+
+Critérios de aceite:
+1. python main.py --check continua funcionando.
+2. python main.py --run continua funcionando.
+3. python main.py --story continua funcionando.
+4. python main.py --ui continua funcionando.
+5. UI abre sem erro.
+6. Existe tela "Marcas".
+7. Existe tela "IA / Providers".
+8. Usuário consegue importar PDF ou DOCX.
+9. O sistema gera brand_profile.json.
+10. O usuário consegue editar/salvar BrandProfile pela UI.
+11. O usuário consegue escolher marca na geração de Stories.
+12. O usuário consegue escolher provider de texto/imagem/visão.
+13. Existe provider custom OpenAI-compatible.
+14. Existe mock provider para texto/imagem/visão.
+15. Se nenhum provider externo estiver configurado, o app ainda funciona com fallback/mock.
+16. Story gerado com marca aplica cores, tom e CTA do BrandProfile.
+17. Manifest registra marca e providers usados.
+18. BrandValidator gera status no manifest.
+19. API keys não aparecem nos logs.
+20. README documenta tudo.
+21. Build Windows inclui os novos módulos.
+
+Testes mínimos:
+Rodar:
+python -m py_compile main.py
+python -m py_compile zero_insight/brand/document_loader.py
+python -m py_compile zero_insight/brand/brand_extractor.py
+python -m py_compile zero_insight/brand/brand_profile.py
+python -m py_compile zero_insight/ai_providers/base.py
+python -m py_compile zero_insight/ai_providers/registry.py
+python -m py_compile zero_insight/desktop/main_window.py
+
+Testar, se possível:
+python main.py --import-brand-doc "tests/fixtures/sample_brand.pdf"
+python main.py --story --topic "RPV Federal" --slides 3 --brand "Requisite"
+python main.py --list-ai-providers
+python main.py --ui
+
+Se não houver fixture, criar uma fixture simples em tests/fixtures/ com DOCX ou TXT convertido apenas se fizer sentido. Não versionar documento real da empresa.
+
+Resumo final esperado:
+Ao terminar, informe:
+- arquivos criados;
+- arquivos alterados;
+- comandos executados;
+- testes feitos;
+- o que não foi possível testar;
+- limitações atuais;
+- próximos passos recomendados.
+
+Não faça implementação preguiçosa que só adiciona campos na UI sem conectar à pipeline.
+A marca precisa afetar de fato a geração de copy, prompt visual, renderização e validação.

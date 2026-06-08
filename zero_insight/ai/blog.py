@@ -31,7 +31,7 @@ def _encode_image(path: Path) -> tuple[str, str]:
     return mime, data
 
 
-def _build_prompt(extracted: dict[str, Any], brand: str) -> str:
+def _build_prompt(extracted: dict[str, Any], brand: str, brand_profile: dict[str, Any] | None = None) -> str:
     raw = extracted.get("raw", {})
     source = extracted.get("source", "desconhecido")
     return f"""Você é redator sênior do blog de uma startup jurídica brasileira chamada "{brand}".
@@ -53,6 +53,9 @@ Fonte dos dados: {source}
 Dados JSON:
 {json.dumps(raw, ensure_ascii=False, indent=2)}
 
+Diretrizes de comunicacao visual e marca, quando disponiveis:
+{json.dumps(brand_profile or {}, ensure_ascii=False, indent=2)}
+
 Responda APENAS com JSON válido neste schema:
 {BLOG_SCHEMA}
 """
@@ -62,6 +65,7 @@ async def generate_blog_post(
     extracted: dict[str, Any],
     screenshot_path: Path,
     settings: Settings,
+    brand_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY não configurada")
@@ -70,7 +74,7 @@ async def generate_blog_post(
         raise RuntimeError(f"Screenshot não encontrado: {screenshot_path}")
 
     mime, b64 = _encode_image(screenshot_path)
-    prompt = _build_prompt(extracted, settings.blog_brand_name)
+    prompt = _build_prompt(extracted, settings.blog_brand_name, brand_profile)
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         res = await client.post(

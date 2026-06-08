@@ -11,6 +11,8 @@ __pycache__/
 results.jsonl
 screenshots/
 posts/
+stories/
+.zeroinsight_appdata/
 
 # Legado Node (se existir)
 node_modules/

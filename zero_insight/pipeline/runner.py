@@ -6,6 +6,7 @@ from typing import Any
 from playwright.async_api import async_playwright
 
 from zero_insight.ai import generate_blog_post, save_blog_markdown, test_groq
+from zero_insight.brand.cache import load_brand_profile
 from zero_insight.browser import extract_data, find_target_page, test_cdp
 from zero_insight.browser.extract import has_real_metrics, is_placeholder_payload
 from zero_insight.capture import capture_dashboard_screenshot
@@ -28,6 +29,7 @@ def _log(on_log: LogFn | None, level: str, msg: str) -> None:
 async def run_pipeline(
     settings: Settings,
     on_log: LogFn | None = None,
+    brand: str | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
     _log(on_log, "STEP", "Conectando ao Brave via CDP...")
 
@@ -64,8 +66,13 @@ async def run_pipeline(
                     _log(on_log, "SUCCESS", f"Screenshot: {screenshot_path.name}")
 
                     _log(on_log, "STEP", "Gerando post de blog com IA (visão)...")
+                    brand_profile = None
+                    if brand:
+                        loaded_profile = load_brand_profile(brand)
+                        brand_profile = loaded_profile.to_dict()
+                        _log(on_log, "INFO", f"Aplicando BrandProfile: {loaded_profile.brand_name}")
                     blog_post = await generate_blog_post(
-                        extracted, screenshot_path, settings
+                        extracted, screenshot_path, settings, brand_profile=brand_profile
                     )
                     blog_post["_saved_at"] = datetime.now(timezone.utc).strftime(
                         "%Y%m%d_%H%M%S"
@@ -123,8 +130,9 @@ async def run_pipeline(
 def run_pipeline_sync(
     settings: Settings,
     on_log: LogFn | None = None,
+    brand: str | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
-    return run_coro(lambda: run_pipeline(settings, on_log))
+    return run_coro(lambda: run_pipeline(settings, on_log, brand=brand))
 
 
 def test_cdp_sync(settings: Settings) -> tuple[bool, str]:
