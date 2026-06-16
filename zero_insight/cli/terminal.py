@@ -4,6 +4,7 @@ import json
 import sys
 import traceback
 from getpass import getpass
+from pathlib import Path
 from typing import Any
 
 from InquirerPy import inquirer
@@ -20,8 +21,8 @@ from rich.table import Table
 from rich.text import Text
 
 from zero_insight.cli.theme import ICONS, console
-from zero_insight.config import GROQ_MODELS, GROQ_VISION_MODELS, Settings, reload_settings, save_settings
-from zero_insight.pipeline import run_pipeline_sync, test_cdp_sync, test_groq_sync
+from zero_insight.config import GROQ_MODELS, GROQ_VISION_MODELS, PROJECT_ROOT, Settings, reload_settings, save_settings
+from zero_insight.pipeline import run_pipeline_sync, run_story_pipeline_sync, test_cdp_sync, test_groq_sync
 
 LEVEL_STYLE = {
     "INFO": "info",
@@ -98,6 +99,29 @@ def _pause() -> None:
     console.input("[dim]Enter para voltar ao menu...[/dim] ")
 
 
+def _story_defaults_path() -> Path:
+    path = PROJECT_ROOT / ".zeroinsight_appdata" / "story_brief_defaults.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _load_story_defaults() -> dict[str, str]:
+    path = _story_defaults_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return {str(key): str(value) for key, value in data.items() if value is not None}
+    except Exception:
+        return {}
+
+
+def _save_story_defaults(data: dict[str, object]) -> Path:
+    path = _story_defaults_path()
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
 def _banner() -> None:
     console.clear()
     grid = Table.grid(expand=True)
@@ -143,6 +167,8 @@ def _settings_table(settings: Settings) -> Table:
         ("URL alvo", settings.target_url),
         ("Modelo texto", settings.groq_model),
         ("Modelo visao", settings.groq_vision_model),
+        ("OpenAI image", settings.openai_image_model),
+        ("Provider imagem", settings.default_image_provider),
         ("Marca blog", settings.blog_brand_name),
         ("API key", settings.masked_api_key()),
         ("Saida", str(settings.output_path)),
@@ -213,6 +239,7 @@ class TerminalApp:
         run_hint = "" if self.settings.groq_api_key.strip() else " [dim](configure Groq)[/dim]"
         return [
             Choice("run", name=f"{ICONS['run']}  Executar pipeline{run_hint}"),
+            Choice("stories_manual", name="▣  Gerar Stories sem Dino (visual + resumo salvo)"),
             Choice("preflight", name=f"{ICONS['check']}  Verificar conexoes (CDP + Groq)"),
             Choice("config", name=f"{ICONS['config']}  Ver configuracao completa"),
             Choice("edit", name=f"{ICONS['edit']}  Editar configuracao (.env)"),
@@ -349,6 +376,164 @@ class TerminalApp:
         console.print(Panel(_settings_table(self.settings), title="Configuracao atual"))
         _pause()
 
+    def _run_manual_stories_ui(self) -> None:
+        from zero_insight.content import StoryBrief
+        from zero_insight.services import BrandService
+
+        _banner()
+        console.print(
+            Panel(
+                "Gera Stories sem acessar Dino. Informe o PDF/DOCX/imagem da identidade visual "
+                "e um resumo do que a empresa faz.",
+                title="[menu]Stories sem Dino[/menu]",
+                border_style="blue",
+            )
+        )
+        defaults = _load_story_defaults()
+        if defaults:
+            console.print(f"[dim]Usando defaults de {_story_defaults_path()}[/dim]")
+        brand_doc = _menu_text(
+            "Caminho do PDF/DOCX/imagem da identidade visual",
+            defaults.get("brand_doc", ""),
+        )
+        if not brand_doc:
+            console.print("[warn]Caminho nao informado.[/warn]")
+            _pause()
+            return
+        brand_path = Path(brand_doc).expanduser()
+        if not brand_path.exists():
+            console.print(f"[err]Arquivo nao encontrado: {brand_path}[/err]")
+            _pause()
+            return
+
+        brand_name = _menu_text("Nome da marca", defaults.get("brand_name", brand_path.stem))
+        company_summary = _menu_text(
+            "Resumo do que a empresa faz",
+            defaults.get(
+                "company_summary",
+                "empresa de servicos profissionais com comunicacao clara e confiavel",
+            ),
+        )
+        topic = _menu_text("Tema do Story", defaults.get("topic", f"Conheca {brand_name}"))
+        cta = _menu_text("CTA", defaults.get("cta", f"Fale com {brand_name}"))
+        slides_raw = _menu_text("Quantidade de Stories", defaults.get("slides", "1"))
+        try:
+            slides = max(1, min(10, int(slides_raw)))
+        except ValueError:
+            slides = 1
+
+        image_provider = _menu_select(
+            "Provider de imagem",
+            [
+                Choice("local", name="Local sem API (recomendado)"),
+                Choice("mock", name="Mock local simples"),
+                Choice("openai", name="OpenAI (pago/API)"),
+                Choice("custom", name="Custom OpenAI-compatible"),
+                Choice("stability", name="Stability"),
+                Choice("replicate", name="Replicate"),
+            ],
+            default=defaults.get("image_provider", "local"),
+        )
+        if image_provider == "openai" and not self.settings.openai_api_key.strip():
+            key = _menu_secret("OPENAI_API_KEY nao configurada. Informe a chave")
+            if key.strip():
+                self.settings.openai_api_key = key.strip()
+                self.settings.default_image_provider = "openai"
+                save_settings(self.settings)
+                self.settings = reload_settings()
+
+        self._logs.clear()
+        defaults_path = _save_story_defaults(
+            {
+                "brand_doc": str(brand_path),
+                "brand_name": brand_name,
+                "company_summary": company_summary,
+                "topic": topic,
+                "cta": cta,
+                "slides": str(slides),
+                "image_provider": image_provider,
+            }
+        )
+        console.print(f"[dim]Dados salvos para reutilizacao: {defaults_path}[/dim]")
+
+        def on_log(level: str, msg: str) -> None:
+            self._on_log(level, msg)
+            style = LEVEL_STYLE.get(level, "white")
+            console.print(f"[{style}]{msg}[/{style}]")
+
+        try:
+            with console.status("[step]Importando identidade visual...[/step]", spinner="dots"):
+                profile, profile_path = BrandService(self.settings).import_document(
+                    brand_path,
+                    brand_name=brand_name,
+                    use_external_ai=False,
+                    on_log=on_log,
+                )
+
+            brief = StoryBrief(
+                topic=topic,
+                objective="gerar uma imagem de post para Stories alinhada a identidade visual",
+                audience="publico-alvo da empresa",
+                tone="claro, profissional e coerente com a marca",
+                cta=cta,
+                slides=slides,
+                template=self.settings.story_default_template,
+                source="manual_story_post",
+                brand_profile_id=str(profile_path),
+                ai_text_provider="mock",
+                ai_image_provider=image_provider,
+                company_summary=company_summary,
+            )
+
+            console.print(
+                Panel(
+                    f"Marca: [bold]{profile.brand_name}[/bold]\n"
+                    f"Provider imagem: [bold]{image_provider}[/bold]\n"
+                    f"Sem Dino: [bold]sim[/bold]",
+                    title="[step]Gerando Stories[/step]",
+                    border_style="blue",
+                )
+            )
+            ok, manifest = run_story_pipeline_sync(
+                self.settings,
+                brief,
+                from_dino=False,
+                on_log=on_log,
+            )
+        except Exception as exc:
+            console.print(
+                Panel(
+                    f"[err]{exc}[/err]\n\n[dim]{traceback.format_exc()}[/dim]",
+                    title="Falha ao gerar Stories",
+                    border_style="red",
+                )
+            )
+            _pause()
+            return
+
+        if manifest:
+            outputs = manifest.get("outputs", {})
+            if outputs.get("review") and outputs.get("manifest"):
+                console.print(
+                    Panel(
+                        f"Pasta: [cyan]{outputs.get('directory', '')}[/cyan]\n"
+                        f"Review: [cyan]{outputs.get('review', '')}[/cyan]\n"
+                        f"Manifest: [cyan]{outputs.get('manifest', '')}[/cyan]",
+                        title="[ok]Stories gerados[/ok]" if ok else "[warn]Stories gerados com avisos[/warn]",
+                        border_style="green" if ok else "yellow",
+                    )
+                )
+            else:
+                console.print(
+                    Panel(
+                        f"Pasta parcial: [cyan]{outputs.get('directory', '')}[/cyan]\n"
+                        "Review/manifest final nao foram criados. Veja o erro acima.",
+                        title="[err]Stories nao concluidos[/err]",
+                        border_style="red",
+                    )
+                )
+        _pause()
+
     def _edit_config(self) -> None:
         _banner()
         field = _menu_select(
@@ -357,6 +542,9 @@ class TerminalApp:
                 Choice("cdp_port", name="Porta CDP (Brave)"),
                 Choice("target_url", name="URL alvo"),
                 Choice("groq_api_key", name="Chave Groq API"),
+                Choice("openai_api_key", name="Chave OpenAI API"),
+                Choice("default_image_provider", name="Provider padrao de imagem"),
+                Choice("openai_image_model", name="Modelo OpenAI para imagem"),
                 Choice("groq_model", name="Modelo Groq (texto)"),
                 Choice("groq_vision_model", name="Modelo Groq (visao / blog)"),
                 Choice("blog_brand_name", name="Nome da startup no blog"),
@@ -379,6 +567,18 @@ class TerminalApp:
                 "Modelo Groq (visao)",
                 [Choice(m, name=m) for m in GROQ_VISION_MODELS],
             )
+        elif field == "default_image_provider":
+            value = _menu_select(
+                "Provider padrao de imagem",
+                [
+                    Choice("local", name="local (sem API, recomendado)"),
+                    Choice("mock", name="mock (sem custo/API, simples)"),
+                    Choice("openai", name="openai (pago/API)"),
+                    Choice("custom", name="custom OpenAI-compatible"),
+                    Choice("stability", name="stability"),
+                    Choice("replicate", name="replicate"),
+                ],
+            )
         elif field == "blog_brand_name":
             value = _menu_text(
                 "Nome da startup juridica no blog",
@@ -386,6 +586,8 @@ class TerminalApp:
             )
         elif field == "groq_api_key":
             value = _menu_secret("Chave Groq API (gsk_...)")
+        elif field == "openai_api_key":
+            value = _menu_secret("Chave OpenAI API (sk-...)")
         else:
             defaults = {
                 "cdp_port": self.settings.cdp_port,
@@ -393,6 +595,8 @@ class TerminalApp:
                 "groq_endpoint": self.settings.groq_endpoint,
                 "output_file": self.settings.output_file,
                 "blog_brand_name": self.settings.blog_brand_name,
+                "openai_image_model": self.settings.openai_image_model,
+                "default_image_provider": self.settings.default_image_provider,
             }
             value = _menu_text(
                 f"Novo valor para {field}",
@@ -514,6 +718,7 @@ class TerminalApp:
     def _dispatch(self, action: str) -> None:
         handlers = {
             "run": self._run_pipeline_ui,
+            "stories_manual": self._run_manual_stories_ui,
             "preflight": self._preflight_ui,
             "config": self._show_config,
             "edit": self._edit_config,

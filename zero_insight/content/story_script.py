@@ -19,6 +19,7 @@ class StoryBrief:
     brand_profile_path: str | None = None
     ai_text_provider: str | None = None
     ai_image_provider: str | None = None
+    company_summary: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

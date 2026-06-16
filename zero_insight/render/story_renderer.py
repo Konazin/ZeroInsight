@@ -52,6 +52,9 @@ class StoryRenderer:
         image = Image.open(base_image_path).convert("RGBA").resize((self.width, self.height))
         draw = ImageDraw.Draw(image, "RGBA")
 
+        if brief.source == "manual_story_post":
+            return self._render_visual_post(image, draw, slide, brief, output_path)
+
         margin = 96
         top = 170
         bottom_safe = self.height - 210
@@ -96,6 +99,70 @@ class StoryRenderer:
             f"{slide.order:02d}/{brief.slides:02d}",
             font=meta_font,
             fill=(255, 255, 255, 210),
+        )
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        image.convert("RGB").save(output_path, format="PNG")
+        return output_path
+
+    def _render_visual_post(
+        self,
+        image: Image.Image,
+        draw: ImageDraw.ImageDraw,
+        slide: StorySlide,
+        brief: StoryBrief,
+        output_path: Path,
+    ) -> Path:
+        margin = 86
+        title_font = _font(78, bold=True)
+        body_font = _font(38)
+        cta_font = _font(38, bold=True)
+        meta_font = _font(28)
+
+        overlay = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+        overlay_draw = ImageDraw.Draw(overlay, "RGBA")
+        overlay_draw.rectangle((0, 0, self.width, self.height), fill=(0, 0, 0, 58))
+        overlay_draw.rounded_rectangle(
+            (margin, 132, self.width - margin, self.height - 172),
+            radius=34,
+            fill=(7, 13, 24, 178),
+            outline=(255, 255, 255, 42),
+            width=2,
+        )
+        image.alpha_composite(overlay)
+        draw = ImageDraw.Draw(image, "RGBA")
+
+        if self.logo_path:
+            try:
+                logo = Image.open(self.logo_path).convert("RGBA")
+                logo.thumbnail((180, 96))
+                image.alpha_composite(logo, (margin + 42, 190))
+            except Exception:
+                pass
+
+        y = 330
+        hook = _wrap(slide.hook, 17)
+        draw.text((margin + 42, y), hook, font=title_font, fill=(255, 255, 255, 255), spacing=8)
+        title_box = draw.multiline_textbbox((margin + 42, y), hook, font=title_font, spacing=8)
+        y = title_box[3] + 42
+
+        body = _wrap(slide.body, 29)
+        draw.text((margin + 42, y), body, font=body_font, fill=(236, 242, 248, 238), spacing=11)
+
+        cta_y = self.height - 420
+        draw.rounded_rectangle(
+            (margin + 42, cta_y, self.width - margin - 42, cta_y + 104),
+            radius=24,
+            fill=(255, 255, 255, 238),
+        )
+        draw.text((margin + 78, cta_y + 28), _wrap(slide.cta, 27), font=cta_font, fill=(15, 23, 42, 255))
+
+        draw.text((margin + 42, self.height - 252), self.brand_name, font=meta_font, fill=(255, 255, 255, 225))
+        draw.text(
+            (self.width - margin - 150, self.height - 252),
+            f"{slide.order:02d}/{brief.slides:02d}",
+            font=meta_font,
+            fill=(255, 255, 255, 205),
         )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)

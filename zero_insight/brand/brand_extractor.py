@@ -65,7 +65,26 @@ class BrandExtractor:
         common = [
             word
             for word, _ in Counter(words).most_common(18)
-            if word not in forbidden_words and word not in {"nao", "não", "usar", "sem"}
+            if word not in forbidden_words
+            and word
+            not in {
+                "nao",
+                "não",
+                "usar",
+                "sem",
+                "para",
+                "com",
+                "como",
+                "mais",
+                "pela",
+                "pelo",
+                "este",
+                "esta",
+                "essa",
+                "esse",
+                "documento",
+                "empresa",
+            }
         ]
         lowered = text.lower()
         profile = BrandProfile(

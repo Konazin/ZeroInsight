@@ -3,6 +3,7 @@ from __future__ import annotations
 from zero_insight.ai_providers.base import ImageProvider, ProviderError, TextProvider, VisionProvider
 from zero_insight.ai_providers.config import ProviderConfig
 from zero_insight.ai_providers.image.custom_image_provider import CustomImageProvider
+from zero_insight.ai_providers.image.local_image_provider import LocalImageProvider
 from zero_insight.ai_providers.image.mock_image_provider import MockImageProvider
 from zero_insight.ai_providers.image.openai_image_provider import OpenAIImageProvider
 from zero_insight.ai_providers.image.replicate_image_provider import ReplicateImageProvider
@@ -23,7 +24,7 @@ from zero_insight.ai_providers.vision.openai_vision_provider import OpenAIVision
 def list_ai_providers() -> dict[str, list[str]]:
     return {
         "text": ["mock", "custom", "openai", "anthropic", "gemini", "groq"],
-        "image": ["mock", "custom", "openai", "stability", "replicate"],
+        "image": ["local", "mock", "custom", "openai", "stability", "replicate"],
         "vision": ["mock", "custom", "openai", "gemini", "groq"],
     }
 
@@ -48,6 +49,7 @@ def create_image_provider(config: ProviderConfig | None = None) -> ImageProvider
     if not config or config.provider_name == "mock":
         return MockImageProvider()
     mapping = {
+        "local": LocalImageProvider,
         "custom": CustomImageProvider,
         "openai": OpenAIImageProvider,
         "stability": lambda _config: StabilityImageProvider(),
@@ -84,7 +86,9 @@ def test_provider(kind: str, name: str) -> tuple[bool, str]:
             return name == "mock", str(exc) if name != "mock" else "text:mock OK"
     if kind == "image":
         provider = create_image_provider(ProviderConfig("image", name))
-        return True, f"{provider.name} disponivel" if name == "mock" else "Provider requer configuracao externa."
+        if name in {"local", "mock"}:
+            return True, f"{provider.name} disponivel sem API"
+        return True, "Provider requer configuracao externa."
     if kind == "vision":
         provider = create_vision_provider(ProviderConfig("vision", name))
         return True, f"{provider.name} disponivel" if name == "mock" else "Provider requer configuracao externa."

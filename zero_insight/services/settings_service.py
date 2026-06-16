@@ -39,6 +39,12 @@ class SettingsService:
         public_data: dict[str, Any] = asdict(settings)
         if public_data.get("groq_api_key"):
             public_data["groq_api_key"] = "***"
+        if public_data.get("openai_api_key"):
+            public_data["openai_api_key"] = "***"
+        if public_data.get("custom_text_api_key"):
+            public_data["custom_text_api_key"] = "***"
+        if public_data.get("custom_image_api_key"):
+            public_data["custom_image_api_key"] = "***"
         providers = public_data.get("providers")
         if isinstance(providers, dict):
             public_data["providers"] = self._mask_provider_secrets(providers)

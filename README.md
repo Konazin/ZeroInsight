@@ -450,3 +450,50 @@ Não utilize, copie ou distribua este projeto fora do escopo autorizado pela emp
 ## Contato interno
 
 Para liberação de acesso, dúvidas de compliance ou evolução do produto, contate a equipe de tecnologia / responsável pelo projeto na RequisiteRPV LTDA.
+ 
+
+---
+
+## Arquitetura frontend/backend local
+
+Esta versao adiciona uma API interna em Python com FastAPI e um frontend web moderno em `frontend/`, sem remover a CLI nem a UI desktop PySide6.
+
+Backend:
+
+```bash
+python main.py --server
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abra `http://127.0.0.1:5173`. O frontend consome `http://127.0.0.1:8765/api`.
+
+Endpoints principais: `/api/health`, `/api/settings`, `/api/providers`, `/api/brands`, `/api/generate/post`, `/api/generate/story`, `/api/generate/image-preview`, `/api/outputs`, `/api/logs`, `/api/brave/start` e `/api/brave/status`.
+
+### OpenAI Platform
+
+Configure `.env` a partir de `.env.example` com `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_TEXT_MODEL`, `OPENAI_REASONING_MODEL`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_SIZE`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_FORMAT`, `OPENAI_IMAGE_BACKGROUND`, `TEXT_PROVIDER` e `DEFAULT_IMAGE_PROVIDER`.
+
+O provider de texto usa a Responses API via SDK oficial `openai`. O provider de imagem usa a Images API e reforca no prompt que a IA deve gerar somente fundo/base visual, sem texto, logotipo ficticio, marca falsa ou promessas juridicas/financeiras.
+
+### Provider custom OpenAI-compatible
+
+Use `CUSTOM_TEXT_BASE_URL`, `CUSTOM_TEXT_ENDPOINT`, `CUSTOM_TEXT_MODEL`, `CUSTOM_TEXT_API_KEY`, `CUSTOM_IMAGE_BASE_URL`, `CUSTOM_IMAGE_ENDPOINT`, `CUSTOM_IMAGE_MODEL` e `CUSTOM_IMAGE_API_KEY`. Texto suporta `/chat/completions` ou `/responses`; imagem aceita `b64_json` ou `url`.
+
+### Privacidade, custos e mock
+
+API keys sao mascaradas, PDF/DOCX de marca nao sao enviados para IA externa sem `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS=true`, o modo `mock`/`local` continua disponivel, e o sistema nao publica no Instagram nem automatiza login/captcha/MFA.
+
+### Manifest e prompts
+
+Pacotes de Stories registram providers/modelos usados, prompts de imagem completos, metadados OpenAI incluindo `revised_prompt` quando existir, e validacoes de marca/compliance/safe zone.
+
+### Build Windows futuro
+
+O backend permanece Python. O frontend web foi separado para permitir empacotamento futuro com Tauri ou abordagem equivalente, mantendo a API local como camada de integracao com as pipelines existentes.

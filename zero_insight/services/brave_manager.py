@@ -136,7 +136,14 @@ class BraveManager:
             if on_log:
                 on_log("ERROR", "Brave nao encontrado. Instale o Brave primeiro.")
             return False
-        self.profile_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.profile_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            from zero_insight.config.settings import PROJECT_ROOT
+
+            self.app_data_dir = PROJECT_ROOT / ".zeroinsight_appdata"
+            self.profile_dir = self.app_data_dir / "brave-profile"
+            self.profile_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
             str(brave_path),
             f"--remote-debugging-port={self.settings.cdp_port}",
@@ -151,7 +158,7 @@ class BraveManager:
 
     def test_cdp_connection(self) -> tuple[bool, str]:
         try:
-            res = httpx.get(f"{self.settings.cdp_url}/json/version", timeout=5.0)
+            res = httpx.get(f"{self.settings.cdp_url}/json/version", timeout=1.5)
             if res.is_success:
                 return True, f"CDP conectado: {res.json().get('Browser', 'Brave')}"
             return False, f"CDP respondeu HTTP {res.status_code}"

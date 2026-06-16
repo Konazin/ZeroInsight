@@ -23,6 +23,7 @@ class ConfigForm(QWidget):
             ("story_brand_primary_color", "Cor primaria"),
             ("story_brand_secondary_color", "Cor secundaria"),
             ("story_logo_path", "Logo"),
+            ("local_image_model_path", "Modelo local de imagem"),
         ]:
             field = QLineEdit(str(getattr(settings, key, "")))
             if key == "groq_api_key":

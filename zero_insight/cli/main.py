@@ -32,7 +32,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run", action="store_true", help="Executa o pipeline sem menu")
     parser.add_argument("--check", action="store_true", help="Verifica CDP + Groq")
     parser.add_argument("--ui", action="store_true", help="Abre a interface desktop")
-    parser.add_argument("--import-brand-doc", default="", help="Importa PDF/DOCX de comunicacao visual")
+    parser.add_argument("--server", action="store_true", help="Sobe a API local FastAPI")
+    parser.add_argument("--import-brand-doc", default="", help="Importa PDF/DOCX/imagem de comunicacao visual")
+    parser.add_argument("--brand-doc", default="", help="PDF/DOCX/imagem de identidade visual para --story")
     parser.add_argument("--brand-name", default="", help="Nome da marca ao importar documento")
     parser.add_argument("--brand", default="", help="Marca/BrandProfile para --run ou --story")
     parser.add_argument("--list-ai-providers", action="store_true", help="Lista providers de IA")
@@ -46,8 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--slides", type=int, default=3, help="Quantidade de Stories")
     parser.add_argument("--template", default="", help="Template visual dos Stories")
     parser.add_argument("--from-dino", action="store_true", help="Tenta reutilizar metricas do Dino")
+    parser.add_argument("--company-summary", default="", help="Resumo do que a empresa faz para Stories sem Dino")
     parser.add_argument("--ai-text-provider", default="", help="Provider de texto para copy/roteiro")
-    parser.add_argument("--ai-image-provider", default="", help="Provider de imagem para base visual")
+    parser.add_argument("--ai-image-provider", default="", help="Provider de imagem para base visual: local, mock, openai, custom...")
     return parser
 
 
@@ -118,8 +121,20 @@ def cmd_story(args: argparse.Namespace) -> int:
     from zero_insight.config import Settings
     from zero_insight.content import StoryBrief
     from zero_insight.pipeline import run_story_pipeline_sync
+    from zero_insight.services import BrandService
 
     settings = Settings.from_env()
+    brand_profile = args.brand or None
+    if args.brand_doc:
+        profile, profile_path = BrandService(settings).import_document(
+            Path(args.brand_doc),
+            brand_name=args.brand_name or None,
+            use_external_ai=settings.allow_external_ai_for_brand_docs,
+        )
+        brand_profile = str(profile_path)
+        console.print(f"[ok]BrandProfile importado: {profile.brand_name} -> {profile_path}[/ok]")
+    image_provider = args.ai_image_provider or ("local" if args.brand_doc and not args.from_dino else settings.default_image_provider)
+    text_provider = args.ai_text_provider or ("mock" if args.brand_doc and not args.from_dino else settings.default_text_provider)
     brief = StoryBrief(
         topic=args.topic.strip() or "RPV Federal",
         objective=args.objective,
@@ -128,10 +143,11 @@ def cmd_story(args: argparse.Namespace) -> int:
         cta=args.cta,
         slides=max(1, args.slides),
         template=args.template.strip() or settings.story_default_template,
-        source="dino" if args.from_dino else "manual",
-        brand_profile_id=args.brand or None,
-        ai_text_provider=args.ai_text_provider or settings.default_text_provider,
-        ai_image_provider=args.ai_image_provider or settings.default_image_provider,
+        source="dino" if args.from_dino else ("manual_story_post" if args.brand_doc else "manual"),
+        brand_profile_id=brand_profile,
+        ai_text_provider=text_provider,
+        ai_image_provider=image_provider,
+        company_summary=args.company_summary,
     )
 
     def on_log(level: str, msg: str) -> None:
@@ -190,10 +206,12 @@ def cmd_list_ai_providers() -> int:
 
 def cmd_test_ai_provider(value: str) -> int:
     from zero_insight.ai_providers import test_provider
+    from zero_insight.config import Settings
 
     if ":" not in value:
         console.print("[err]Use formato tipo:nome, exemplo text:custom[/err]")
         return 1
+    Settings.from_env()
     kind, name = value.split(":", 1)
     ok, msg = test_provider(kind, name)
     console.print(("[ok]" if ok else "[err]") + msg + ("[/ok]" if ok else "[/err]"))
@@ -218,6 +236,11 @@ def main(argv: list[str] | None = None) -> int:
         from zero_insight.desktop.app import main as desktop_main
 
         return desktop_main()
+    if args.server:
+        from zero_insight.server.app import run_server
+
+        run_server()
+        return 0
     if args.story:
         return cmd_story(args)
 

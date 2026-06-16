@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zipfile
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,7 +21,9 @@ class DocumentLoader:
             return self._load_pdf(path, assets_dir)
         if suffix == ".docx":
             return self._load_docx(path, assets_dir)
-        raise ValueError("Formato nao suportado. Use PDF ou DOCX.")
+        if suffix in {".png", ".jpg", ".jpeg", ".webp"}:
+            return self._load_image(path, assets_dir)
+        raise ValueError("Formato nao suportado. Use PDF, DOCX, PNG, JPG ou WEBP.")
 
     def _load_pdf(self, path: Path, assets_dir: Path | None) -> LoadedBrandDocument:
         try:
@@ -67,3 +70,47 @@ class DocumentLoader:
                         assets.append(target)
         warnings = [] if text else ["DOCX sem texto extraivel."]
         return LoadedBrandDocument(path=path, text=text, warnings=warnings, extracted_assets=assets)
+
+    def _load_image(self, path: Path, assets_dir: Path | None) -> LoadedBrandDocument:
+        try:
+            from PIL import Image
+        except ImportError as exc:
+            raise RuntimeError("Pillow nao instalado. Instale a dependencia pillow.") from exc
+
+        assets: list[Path] = []
+        if assets_dir:
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            target = assets_dir / path.name
+            if path.resolve() != target.resolve():
+                target.write_bytes(path.read_bytes())
+            assets.append(target)
+
+        colors: list[str] = []
+        try:
+            with Image.open(path) as image:
+                image = image.convert("RGB")
+                image.thumbnail((96, 96))
+                pixels = [
+                    (r, g, b)
+                    for r, g, b in image.getdata()
+                    if not (r > 245 and g > 245 and b > 245) and not (r < 10 and g < 10 and b < 10)
+                ]
+                for (r, g, b), _ in Counter(pixels).most_common(6):
+                    colors.append(f"#{r:02X}{g:02X}{b:02X}")
+        except Exception as exc:
+            return LoadedBrandDocument(
+                path=path,
+                text=f"Arquivo visual da marca: {path.stem}",
+                warnings=[f"Nao foi possivel analisar cores da imagem: {exc}"],
+                extracted_assets=assets,
+            )
+
+        text = "\n".join(
+            [
+                f"Arquivo visual da marca: {path.stem}",
+                "Visual: imagem/logo importado para uso como asset da marca.",
+                f"Cores identificadas: {', '.join(colors) if colors else 'nenhuma cor dominante identificada'}",
+                "Logo: usar a imagem importada como referencia visual principal.",
+            ]
+        )
+        return LoadedBrandDocument(path=path, text=text, warnings=[], extracted_assets=assets)

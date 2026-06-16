@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QThread
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -13,6 +15,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -20,6 +23,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QProgressBar,
+    QScrollArea,
     QSpinBox,
     QStackedWidget,
     QTextEdit,
@@ -100,22 +104,34 @@ class MainWindow(QMainWindow):
         self.refresh_dashboard()
 
     def _build_pages(self) -> None:
-        self.stack.addWidget(self._dashboard_page())
-        self.stack.addWidget(self._environment_page())
-        self.stack.addWidget(self._brave_page())
-        self.stack.addWidget(self._brands_page())
-        self.stack.addWidget(self._providers_page())
-        self.stack.addWidget(self._post_page())
-        self.stack.addWidget(self._stories_page())
-        self.stack.addWidget(self._outputs_page())
-        self.stack.addWidget(self._settings_page())
+        self.stack.addWidget(self._scroll_page(self._dashboard_page()))
+        self.stack.addWidget(self._scroll_page(self._environment_page()))
+        self.stack.addWidget(self._scroll_page(self._brave_page()))
+        self.stack.addWidget(self._scroll_page(self._brands_page()))
+        self.stack.addWidget(self._scroll_page(self._providers_page()))
+        self.stack.addWidget(self._scroll_page(self._post_page()))
+        self.stack.addWidget(self._scroll_page(self._stories_page()))
+        self.stack.addWidget(self._scroll_page(self._outputs_page()))
+        self.stack.addWidget(self._scroll_page(self._settings_page()))
         self.stack.addWidget(self.logs)
+
+    @staticmethod
+    def _scroll_page(page: QWidget) -> QScrollArea:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(page)
+        return scroll
 
     def _page(self, title: str) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
         layout = QVBoxLayout(page)
         label = QLabel(title)
         label.setObjectName("Title")
+        title_font = QFont("Segoe UI")
+        title_font.setPointSize(18)
+        title_font.setWeight(QFont.Weight.Bold)
+        label.setFont(title_font)
         layout.addWidget(label)
         return page, layout
 
@@ -184,7 +200,7 @@ class MainWindow(QMainWindow):
         form.addRow("Marca", self.post_brand)
         self.post_validate_brand = QCheckBox("validar comunicacao visual")
         self.post_validate_brand.setChecked(True)
-        form.addRow("Marca", self.post_validate_brand)
+        form.addRow("Validacao", self.post_validate_brand)
         self._add_action(form, "Gerar post Markdown", self.run_blog_pipeline)
         layout.addWidget(group)
         self.post_result = QLabel("")
@@ -214,7 +230,7 @@ class MainWindow(QMainWindow):
         self.story_text_provider.addItems(["mock", "custom", "openai", "anthropic", "gemini", "groq"])
         self.story_text_provider.setCurrentText(self.settings.default_text_provider)
         self.story_image_provider = QComboBox()
-        self.story_image_provider.addItems(["mock", "custom", "openai", "stability", "replicate"])
+        self.story_image_provider.addItems(["local", "mock", "custom", "openai", "stability", "replicate"])
         self.story_image_provider.setCurrentText(self.settings.default_image_provider)
         self.story_use_brand = QCheckBox("usar manual de comunicacao visual")
         self.story_use_brand.setChecked(True)
@@ -250,6 +266,14 @@ class MainWindow(QMainWindow):
 
     def _brands_page(self) -> QWidget:
         page, layout = self._page("Marcas")
+        selector_group = QGroupBox("Perfil de marca")
+        selector_form = QFormLayout(selector_group)
+        self.brand_selector = QComboBox()
+        self._fill_brand_combo(self.brand_selector)
+        selector_form.addRow("Marca", self.brand_selector)
+        self._add_action(selector_form, "Carregar perfil selecionado", self.load_selected_brand_profile)
+        layout.addWidget(selector_group)
+
         actions = QHBoxLayout()
         self._add_action(actions, "Importar manual de comunicacao visual", self.import_brand_document)
         self._add_action(actions, "Salvar perfil editado", self.save_brand_profile_json)
@@ -278,7 +302,7 @@ class MainWindow(QMainWindow):
         self.default_text_provider.addItems(["mock", "custom", "openai", "anthropic", "gemini", "groq"])
         self.default_text_provider.setCurrentText(self.settings.default_text_provider)
         self.default_image_provider = QComboBox()
-        self.default_image_provider.addItems(["mock", "custom", "openai", "stability", "replicate"])
+        self.default_image_provider.addItems(["local", "mock", "custom", "openai", "stability", "replicate"])
         self.default_image_provider.setCurrentText(self.settings.default_image_provider)
         self.default_vision_provider = QComboBox()
         self.default_vision_provider.addItems(["mock", "custom", "openai", "gemini", "groq"])
@@ -306,6 +330,8 @@ class MainWindow(QMainWindow):
             form.addRow(label, widget)
         self._add_action(form, "Salvar configuracao", self.save_provider_settings)
         self._add_action(form, "Testar geracao curta", self.test_provider_settings)
+        self.provider_type.currentTextChanged.connect(lambda _: self.load_provider_settings_form())
+        self.load_provider_settings_form()
         layout.addWidget(group)
         self.provider_status = QLabel("Status: nao testado.")
         self.provider_status.setObjectName("Muted")
@@ -363,19 +389,37 @@ class MainWindow(QMainWindow):
         return BrandService(self.settings)
 
     def _fill_brand_combo(self, combo: QComboBox) -> None:
+        current = combo.currentData()
         combo.clear()
         combo.addItem("(sem marca)", "")
         try:
             from zero_insight.brand.cache import list_brand_profiles
             from zero_insight.brand import BrandProfile
-            import json
 
             for path in list_brand_profiles():
                 data = json.loads(path.read_text(encoding="utf-8"))
                 profile = BrandProfile.from_dict(data)
                 combo.addItem(profile.brand_name, str(path))
+            preferred = str(current or self.settings.default_brand_profile_id or "")
+            if preferred:
+                self._select_combo_data(combo, preferred)
         except Exception:
             pass
+
+    def _refresh_brand_selectors(self, selected_path: str | None = None) -> None:
+        for attr in ("brand_selector", "story_brand", "post_brand"):
+            combo = getattr(self, attr, None)
+            if combo is not None:
+                self._fill_brand_combo(combo)
+                if selected_path:
+                    self._select_combo_data(combo, selected_path)
+
+    @staticmethod
+    def _select_combo_data(combo: QComboBox, data: str) -> None:
+        for index in range(combo.count()):
+            if str(combo.itemData(index) or "") == str(data):
+                combo.setCurrentIndex(index)
+                return
 
     def _set_busy(self, busy: bool) -> None:
         self.state.busy = busy
@@ -395,6 +439,7 @@ class MainWindow(QMainWindow):
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
         thread.finished.connect(lambda: self._set_busy(False))
+        thread.finished.connect(lambda: self.threads.remove(thread) if thread in self.threads else None)
         thread.finished.connect(thread.deleteLater)
         thread.started.connect(worker.run)
         self.threads.append(thread)
@@ -483,9 +528,9 @@ class MainWindow(QMainWindow):
     def run_blog_pipeline(self) -> None:
         self.save_settings(silent=True)
         _, _, pipeline, _ = self._reload_services()
+        brand = self.post_brand.currentData() if self.post_validate_brand.isChecked() else None
 
         def task(on_log=None):
-            brand = self.post_brand.currentData() or None
             return pipeline.run_blog(on_log=on_log, brand=brand)
 
         def done(result):
@@ -501,6 +546,7 @@ class MainWindow(QMainWindow):
     def run_story_pipeline(self) -> None:
         self.save_settings(silent=True)
         _, _, pipeline, _ = self._reload_services()
+        from_dino = self.story_from_dino.isChecked()
         brief = StoryBrief(
             topic=self.story_topic.text().strip() or "RPV Federal",
             objective=self.story_objective.text().strip(),
@@ -509,7 +555,7 @@ class MainWindow(QMainWindow):
             cta=self.story_cta.text().strip(),
             slides=self.story_slides.value(),
             template=self.story_template.currentText(),
-            source="dino" if self.story_from_dino.isChecked() else "manual",
+            source="dino" if from_dino else "manual",
             brand_profile_path=(self.story_brand.currentData() if self.story_use_brand.isChecked() else None),
             ai_text_provider=self.story_text_provider.currentText(),
             ai_image_provider=self.story_image_provider.currentText(),
@@ -518,7 +564,7 @@ class MainWindow(QMainWindow):
         def task(on_log=None):
             return pipeline.run_stories(
                 brief,
-                from_dino=self.story_from_dino.isChecked(),
+                from_dino=from_dino,
                 on_log=on_log,
             )
 
@@ -548,36 +594,60 @@ class MainWindow(QMainWindow):
             self,
             "Importar manual de comunicacao visual",
             "",
-            "Documentos de marca (*.pdf *.docx)",
+            "Documentos e imagens de marca (*.pdf *.docx *.png *.jpg *.jpeg *.webp)",
         )
         if not path:
             return
+        default_name = Path(path).stem
+        brand_name, ok = QInputDialog.getText(
+            self,
+            "Nome da marca",
+            "Nome que sera usado para salvar o perfil:",
+            text=default_name,
+        )
+        if not ok:
+            return
+        brand_name = brand_name.strip() or default_name
         service = self._brand_service()
 
         def task(on_log=None):
             return service.import_document(
                 Path(path),
+                brand_name=brand_name,
                 use_external_ai=self.settings.allow_external_ai_for_brand_docs,
                 on_log=on_log,
             )
 
         def done(result):
             profile, profile_path = result
-            import json
 
             self.brand_profile_editor.setPlainText(json.dumps(profile.to_dict(), ensure_ascii=False, indent=2))
             self.brand_status.setText(f"Perfil gerado: {profile_path}\nStatus: {profile.status}")
-            self._fill_brand_combo(self.story_brand)
-            self._fill_brand_combo(self.post_brand)
+            self._refresh_brand_selectors(str(profile_path))
 
         self._run_task("Importando manual de marca", task, done)
+
+    def load_selected_brand_profile(self) -> None:
+        current = self.brand_selector.currentData() if hasattr(self, "brand_selector") else None
+        if not current:
+            self.brand_status.setText("Selecione uma marca para carregar.")
+            return
+        try:
+            from zero_insight.brand.cache import load_brand_profile
+
+            profile = load_brand_profile(current)
+            self.brand_profile_editor.setPlainText(json.dumps(profile.to_dict(), ensure_ascii=False, indent=2))
+            self.brand_status.setText(f"Perfil carregado: {current}\nStatus: {profile.status}")
+            self._select_combo_data(self.story_brand, str(current))
+            self._select_combo_data(self.post_brand, str(current))
+        except Exception as exc:
+            show_actionable_error(self, "Erro ao carregar perfil", str(exc))
 
     def save_brand_profile_json(self) -> None:
         try:
             path = self._brand_service().save_profile_from_json(self.brand_profile_editor.toPlainText())
             self.brand_status.setText(f"Perfil salvo: {path}")
-            self._fill_brand_combo(self.story_brand)
-            self._fill_brand_combo(self.post_brand)
+            self._refresh_brand_selectors(str(path))
         except Exception as exc:
             show_actionable_error(self, "Erro ao salvar perfil", f"JSON invalido ou incompleto: {exc}")
 
@@ -593,11 +663,19 @@ class MainWindow(QMainWindow):
             show_actionable_error(self, "Erro ao validar perfil", str(exc))
 
     def use_current_brand_default(self) -> None:
-        current = self.story_brand.currentData() or self.post_brand.currentData()
+        current = ""
+        for attr in ("brand_selector", "story_brand", "post_brand"):
+            combo = getattr(self, attr, None)
+            if combo is not None and combo.currentData():
+                current = str(combo.currentData())
+                break
         if current:
             self.settings.default_brand_profile_id = str(current)
             self.settings_service.save(self.settings)
+            self._refresh_brand_selectors(current)
             self.brand_status.setText(f"Marca padrao: {current}")
+        else:
+            self.brand_status.setText("Selecione uma marca antes de definir o padrao.")
 
     def save_provider_settings(self) -> None:
         kind = self.provider_type.currentText()
@@ -615,14 +693,73 @@ class MainWindow(QMainWindow):
         self.settings.default_vision_provider = self.default_vision_provider.currentText()
         self.settings.allow_external_ai_for_brand_docs = self.allow_external_brand_ai.isChecked()
         self.settings_service.save(self.settings)
+        self.story_text_provider.setCurrentText(self.settings.default_text_provider)
+        self.story_image_provider.setCurrentText(self.settings.default_image_provider)
         self.provider_status.setText("Status: configuracao salva. API key nao sera exibida em logs.")
 
-    def test_provider_settings(self) -> None:
-        from zero_insight.ai_providers import test_provider
+    def load_provider_settings_form(self) -> None:
+        kind = self.provider_type.currentText()
+        providers = self.settings.providers or {}
+        raw = {}
+        if isinstance(providers, dict):
+            raw = providers.get(kind, {}).get("custom", {}) or {}
+        self.provider_model.setText(str(raw.get("model") or ""))
+        self.provider_base_url.setText(str(raw.get("base_url") or ""))
+        self.provider_endpoint.setText(str(raw.get("endpoint") or ""))
+        api_key = raw.get("api_key_value")
+        self.provider_api_key.setText("" if api_key == "***" else str(api_key or ""))
+
+    def _selected_provider_config(self):
+        from zero_insight.ai_providers import ProviderConfig
 
         kind = self.provider_type.currentText()
-        ok, msg = test_provider(kind, "mock" if self.default_text_provider.currentText() == "mock" else "custom")
-        self.provider_status.setText(("OK: " if ok else "Erro: ") + msg)
+        selected = {
+            "text": self.default_text_provider.currentText(),
+            "image": self.default_image_provider.currentText(),
+            "vision": self.default_vision_provider.currentText(),
+        }[kind]
+        if selected != "custom":
+            config = ProviderConfig(kind, selected)
+            if kind == "image" and selected == "local":
+                config.model = self.settings.local_image_model_path
+            return config
+        return ProviderConfig(
+            kind,
+            selected,
+            model=self.provider_model.text().strip(),
+            base_url=self.provider_base_url.text().strip() or None,
+            endpoint=self.provider_endpoint.text().strip() or None,
+            api_key_value=self.provider_api_key.text().strip() or None,
+        )
+
+    def test_provider_settings(self) -> None:
+        from zero_insight.ai_providers import create_image_provider, create_text_provider, create_vision_provider
+
+        config = self._selected_provider_config()
+
+        def task(on_log=None):
+            if config.provider_type == "text":
+                provider = create_text_provider(config)
+                provider.generate_text("Responda apenas OK.")
+                return True, f"{config.provider_type}:{provider.name} OK"
+            if config.provider_type == "image":
+                provider = create_image_provider(config)
+                output = Path(".zeroinsight_appdata") / "cache" / "provider_test.png"
+                provider.generate_image("Teste simples de integracao visual.", 512, 512, output)
+                return True, f"{config.provider_type}:{provider.name} OK - {output}"
+            provider = create_vision_provider(config)
+            sample = Path(".zeroinsight_appdata") / "cache" / "provider_test.png"
+            sample.parent.mkdir(parents=True, exist_ok=True)
+            if not sample.exists():
+                create_image_provider(None).generate_image("Amostra para teste de visao.", 512, 512, sample)
+            provider.analyze_image(sample, "Responda apenas OK.")
+            return True, f"{config.provider_type}:{provider.name} OK"
+
+        def done(result):
+            ok, msg = result
+            self.provider_status.setText(("OK: " if ok else "Erro: ") + msg)
+
+        self._run_task("Testando provider", task, done)
 
     def refresh_outputs(self) -> None:
         _, _, _, outputs = self._reload_services()
@@ -637,7 +774,7 @@ class MainWindow(QMainWindow):
     def open_output_root(self) -> None:
         _, _, _, outputs = self._reload_services()
         root = Path(self.settings.output_dir).expanduser() if self.settings.output_dir else Path.cwd()
-        outputs.open_path(root)
+        self._open_path(outputs, root)
 
     def open_last_review(self) -> None:
         if not self.state.last_story_manifest:
@@ -646,7 +783,9 @@ class MainWindow(QMainWindow):
         _, _, _, outputs = self._reload_services()
         review = self.state.last_story_manifest.get("outputs", {}).get("review")
         if review:
-            outputs.open_path(Path(review))
+            self._open_path(outputs, Path(review))
+        else:
+            self._append_log("WARN", "A campanha recente nao tem review.html registrado.")
 
     def open_last_story_dir(self) -> None:
         if not self.state.last_story_manifest:
@@ -655,7 +794,22 @@ class MainWindow(QMainWindow):
         _, _, _, outputs = self._reload_services()
         directory = self.state.last_story_manifest.get("outputs", {}).get("directory")
         if directory:
-            outputs.open_path(Path(directory))
+            self._open_path(outputs, Path(directory))
+        else:
+            self._append_log("WARN", "A campanha recente nao tem pasta registrada.")
+
+    def _open_path(self, outputs: OutputService, path: Path) -> None:
+        try:
+            if not path.exists():
+                raise FileNotFoundError(f"Caminho nao encontrado: {path}")
+            outputs.open_path(path)
+        except Exception as exc:
+            show_actionable_error(
+                self,
+                "Erro ao abrir caminho",
+                f"Nao foi possivel abrir: {path}",
+                str(exc),
+            )
 
     @staticmethod
     def _clear_layout(layout: QVBoxLayout) -> None:

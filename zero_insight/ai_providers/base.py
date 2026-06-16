@@ -97,6 +97,8 @@ class OpenAICompatibleTextProvider(TextProvider):
         messages.append({"role": "user", "content": prompt})
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         headers.update(self.config.extra_headers)
+        if endpoint.rstrip("/").endswith("/responses"):
+            return self._generate_responses(endpoint, headers, prompt, system_prompt, temperature)
         res = httpx.post(
             endpoint,
             headers=headers,
@@ -110,7 +112,47 @@ class OpenAICompatibleTextProvider(TextProvider):
         )
         if not res.is_success:
             raise ProviderError(f"Provider texto retornou HTTP {res.status_code}: {res.text[:200]}")
-        return res.json()["choices"][0]["message"]["content"]
+        try:
+            return res.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ProviderError("Formato de resposta de texto nao compativel com OpenAI chat/completions.") from exc
+
+    def _generate_responses(
+        self,
+        endpoint: str,
+        headers: dict[str, str],
+        prompt: str,
+        system_prompt: str | None,
+        temperature: float,
+    ) -> str:
+        input_messages = []
+        if system_prompt:
+            input_messages.append({"role": "system", "content": system_prompt})
+        input_messages.append({"role": "user", "content": prompt})
+        res = httpx.post(
+            endpoint,
+            headers=headers,
+            json={
+                "model": self.config.model,
+                "input": input_messages,
+                "temperature": temperature,
+                **self.config.extra_params,
+            },
+            timeout=90,
+        )
+        if not res.is_success:
+            raise ProviderError(f"Provider texto retornou HTTP {res.status_code}: {res.text[:200]}")
+        data = res.json()
+        if data.get("output_text"):
+            return str(data["output_text"])
+        chunks: list[str] = []
+        for item in data.get("output", []):
+            for content in item.get("content", []):
+                if content.get("text"):
+                    chunks.append(str(content["text"]))
+        if chunks:
+            return "\n".join(chunks)
+        raise ProviderError("Formato de resposta de texto nao compativel com OpenAI responses.")
 
     def _endpoint(self, suffix: str) -> str:
         if not self.config.base_url:
@@ -160,7 +202,7 @@ class OpenAICompatibleImageProvider(ImageProvider):
             image.raise_for_status()
             output_path.write_bytes(image.content)
             return output_path
-        raise ProviderError("Resposta de imagem sem url ou base64.")
+        raise ProviderError("Formato de resposta de imagem nao compativel: esperado b64_json ou url.")
 
     def _endpoint(self, suffix: str) -> str:
         if not self.config.base_url:

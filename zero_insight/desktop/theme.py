@@ -5,7 +5,6 @@ QMainWindow, QWidget {
   background: #0F172A;
   color: #F9FAFB;
   font-family: Segoe UI, Arial, sans-serif;
-  font-size: 13px;
 }
 QListWidget {
   background: #111827;
@@ -63,7 +62,6 @@ QLabel#Muted {
   color: #9CA3AF;
 }
 QLabel#Title {
-  font-size: 24px;
   font-weight: 700;
 }
 QProgressBar {
