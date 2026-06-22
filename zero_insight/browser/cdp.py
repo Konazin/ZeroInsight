@@ -1,9 +1,13 @@
 ﻿from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
-from playwright.async_api import Browser, Page
 
 from zero_insight.config import Settings
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, Page
 
 
 async def find_target_page(browser: Browser, settings: Settings) -> Page:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import os
 from pathlib import Path
 from typing import Any
@@ -33,10 +34,16 @@ class OpenAIImageProvider(ImageProvider):
             from openai import OpenAI
         except ImportError as exc:
             raise ProviderError("Dependencia oficial 'openai' nao instalada. Rode pip install -r requirements.txt.") from exc
-        kwargs: dict[str, Any] = {"api_key": api_key}
-        if self.base_url:
-            kwargs["base_url"] = self.base_url
-        return OpenAI(**kwargs)
+        # O SDK da OpenAI lê OPENAI_BASE_URL do ambiente mesmo sem passar base_url.
+        # Se a variável estiver vazia no .env, ele monta URLs sem protocolo (httpcore.UnsupportedProtocol).
+        # Solução: sempre passar base_url explicitamente — custom se configurado, padrão oficial caso contrário.
+        base_url = self.base_url or "https://api.openai.com/v1"
+        return OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=httpx.Timeout(None, connect=15.0),
+            max_retries=0,
+        )
 
     def generate_image(
         self,
@@ -45,13 +52,21 @@ class OpenAIImageProvider(ImageProvider):
         height: int,
         output_path: Path,
         negative_prompt: str | None = None,
+        logo_path: str | None = None,
     ) -> Path:
-        safe_prompt = self._safe_prompt(prompt, negative_prompt)
+        final_prompt = prompt if not negative_prompt else f"{prompt}\n\nAvoid: {negative_prompt}"
         size = self._supported_size(width, height)
         client = self._client()
+
+        if logo_path and Path(logo_path).is_file():
+            return self._generate_with_logo(client, final_prompt, size, output_path, Path(logo_path))
+
+        return self._generate(client, final_prompt, size, output_path)
+
+    def _generate(self, client: Any, prompt: str, size: str, output_path: Path) -> Path:
         kwargs: dict[str, Any] = {
             "model": self.config.model,
-            "prompt": safe_prompt,
+            "prompt": prompt,
             "size": size,
             "quality": self.quality,
             "n": 1,
@@ -63,14 +78,59 @@ class OpenAIImageProvider(ImageProvider):
         except TypeError:
             kwargs.pop("background", None)
             response = client.images.generate(**kwargs)
+        return self._save_response(response, prompt, size, output_path, logo_embedded=False)
+
+    def _generate_with_logo(
+        self, client: Any, prompt: str, size: str, output_path: Path, logo_path: Path
+    ) -> Path:
+        """Usa o endpoint /images/edits com canvas pré-montado contendo a logo.
+
+        A OpenAI preserva áreas opacas (logo) e gera o restante (áreas transparentes),
+        integrando a logo ao design em vez de sobrepô-la com PIL depois.
+        """
+        from PIL import Image as PILImage
+
+        w, h = (map(int, size.split("x")) if "x" in size else (1024, 1536))
+
+        canvas = PILImage.new("RGBA", (w, h), (0, 0, 0, 0))
+        logo = PILImage.open(logo_path).convert("RGBA")
+        logo.thumbnail((180, 100))
+        margin = 64
+        canvas.paste(logo, (margin, margin), logo)
+
+        buf = io.BytesIO()
+        canvas.save(buf, format="PNG")
+        buf.seek(0)
+
+        kwargs: dict[str, Any] = {
+            "model": self.config.model,
+            "image": ("canvas.png", buf, "image/png"),
+            "prompt": prompt,
+            "size": size,
+            "quality": self.quality,
+            "n": 1,
+        }
+        if self.background:
+            kwargs["background"] = self.background
+        try:
+            response = client.images.edit(**kwargs)
+        except TypeError:
+            kwargs.pop("background", None)
+            buf.seek(0)
+            response = client.images.edit(**kwargs)
+        return self._save_response(response, prompt, size, output_path, logo_embedded=True)
+
+    def _save_response(
+        self, response: Any, prompt: str, size: str, output_path: Path, *, logo_embedded: bool
+    ) -> Path:
         data = response.data[0]
         output_path.parent.mkdir(parents=True, exist_ok=True)
         if getattr(data, "b64_json", None):
             output_path.write_bytes(base64.b64decode(data.b64_json))
         elif getattr(data, "url", None):
-            image = httpx.get(data.url, timeout=120)
-            image.raise_for_status()
-            output_path.write_bytes(image.content)
+            img = httpx.get(data.url, timeout=None)
+            img.raise_for_status()
+            output_path.write_bytes(img.content)
         else:
             raise ProviderError("Resposta da OpenAI Images sem base64 ou URL.")
         self.last_metadata = {
@@ -82,7 +142,8 @@ class OpenAIImageProvider(ImageProvider):
             "background": self.background,
             "revised_prompt": getattr(data, "revised_prompt", None),
             "cost_estimate": None,
-            "prompt_used": safe_prompt,
+            "prompt_used": prompt,
+            "logo_embedded": logo_embedded,
         }
         return output_path
 
@@ -99,9 +160,8 @@ class OpenAIImageProvider(ImageProvider):
 
     @staticmethod
     def _safe_prompt(prompt: str, negative_prompt: str | None = None) -> str:
-        blocked = (
-            "Do not generate any text, letters, numbers, captions, fake logos, fake brand marks, "
-            "watermarks, UI mockups, legal promises, financial guarantees, or sensationalist claims. "
-            "The application will add final text, logo, CTA, and layout elements later."
+        compliance = (
+            "Do not include content that implies guaranteed legal or financial results, "
+            "misleading claims, sensationalist language, or content that violates platform policies."
         )
-        return "\n\n".join(part for part in (prompt, blocked, negative_prompt) if part)
+        return "\n\n".join(part for part in (prompt, compliance, negative_prompt) if part)

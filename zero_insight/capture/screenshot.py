@@ -2,10 +2,12 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
-
-from playwright.async_api import Page
+from typing import TYPE_CHECKING
 
 from zero_insight.config import Settings
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 async def capture_dashboard_screenshot(page: Page, settings: Settings) -> Path:

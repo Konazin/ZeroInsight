@@ -5,5 +5,37 @@ export type ProviderState = {
   openai: { configured: boolean; text_model: string; reasoning_model: string; image_model: string; image_size: string };
 };
 export type BrandItem = { id: string; name: string; path: string };
-export type OutputItem = { type: string; name: string; path: string; modified_at: number };
+export type BrandColor = { name: string; hex: string; usage?: string };
+export type BrandProfile = {
+  brand_name: string;
+  summary: string;
+  tone_of_voice: string[];
+  visual_style: string[];
+  color_palette: BrandColor[];
+  preferred_terms: string[];
+  forbidden_terms: string[];
+  typography_notes: string[];
+  logo_usage_notes: string[];
+  layout_rules: string[];
+  image_style_rules: string[];
+  content_rules: string[];
+  compliance_rules: string[];
+  target_audience: string[];
+  cta_style: string[];
+  status: string;
+  created_at: string;
+  source_document_path: string;
+  assets: Record<string, string>;
+};
+export type OutputItem = { type: string; name: string; path: string; modified_at: number; size?: number };
 export type Settings = Record<string, string | number | boolean | object | null>;
+export type PromptTemplate = {
+  id: string;
+  name: string;
+  prompt: string;
+  description?: string;
+  brand_id?: string | null;
+  tags?: string[];
+  created_at: string;
+  updated_at?: string;
+};

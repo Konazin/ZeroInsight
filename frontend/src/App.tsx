@@ -21,6 +21,8 @@ export function App() {
 
   useEffect(() => {
     void refreshStatus();
+    const id = setInterval(() => void refreshStatus(), 30_000);
+    return () => clearInterval(id);
   }, []);
 
   async function refreshStatus() {

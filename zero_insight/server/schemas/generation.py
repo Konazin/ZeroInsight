@@ -20,6 +20,7 @@ class GenerateStoryRequest(BaseModel):
     ai_text_provider: str | None = None
     ai_image_provider: str | None = None
     company_summary: str = ""
+    custom_image_prompt: str | None = None
 
 
 class ImagePreviewRequest(BaseModel):

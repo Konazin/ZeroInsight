@@ -3,13 +3,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from playwright.async_api import async_playwright
-
 from zero_insight.ai import generate_blog_post, save_blog_markdown, test_groq
 from zero_insight.brand.cache import load_brand_profile
-from zero_insight.browser import extract_data, find_target_page, test_cdp
-from zero_insight.browser.extract import has_real_metrics, is_placeholder_payload
-from zero_insight.capture import capture_dashboard_screenshot
 from zero_insight.config import Settings
 from zero_insight.core import LogFn, run_coro
 from zero_insight.pipeline.storage import append_jsonl
@@ -34,6 +29,10 @@ async def run_pipeline(
     _log(on_log, "STEP", "Conectando ao Brave via CDP...")
 
     try:
+        from playwright.async_api import async_playwright  # importado só quando pipeline Dino é executado
+        from zero_insight.browser import extract_data, find_target_page, test_cdp
+        from zero_insight.browser.extract import has_real_metrics, is_placeholder_payload
+        from zero_insight.capture import capture_dashboard_screenshot
         async with async_playwright() as playwright:
             browser = await playwright.chromium.connect_over_cdp(settings.cdp_url)
             page = await find_target_page(browser, settings)
@@ -136,6 +135,7 @@ def run_pipeline_sync(
 
 
 def test_cdp_sync(settings: Settings) -> tuple[bool, str]:
+    from zero_insight.browser import test_cdp
     return run_coro(lambda: test_cdp(settings))
 
 

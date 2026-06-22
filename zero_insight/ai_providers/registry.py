@@ -77,19 +77,37 @@ def create_vision_provider(config: ProviderConfig | None = None) -> VisionProvid
 
 
 def test_provider(kind: str, name: str) -> tuple[bool, str]:
+    _LOCAL_ONLY = {"mock", "local"}
+
     if kind == "text":
-        provider = create_text_provider(ProviderConfig("text", name))
         try:
-            provider.generate_text("Responda ok")
-            return True, f"{kind}:{name} OK"
-        except Exception as exc:
-            return name == "mock", str(exc) if name != "mock" else "text:mock OK"
+            provider = create_text_provider(ProviderConfig("text", name))
+        except ProviderError as exc:
+            return False, str(exc)
+        if name in _LOCAL_ONLY:
+            try:
+                provider.generate_text("Responda ok")
+                return True, f"text:{name} OK (local)"
+            except Exception as exc:
+                return False, str(exc)
+        return True, f"text:{name} registrado — requer chave de API para funcionar."
+
     if kind == "image":
-        provider = create_image_provider(ProviderConfig("image", name))
-        if name in {"local", "mock"}:
-            return True, f"{provider.name} disponivel sem API"
-        return True, "Provider requer configuracao externa."
+        try:
+            provider = create_image_provider(ProviderConfig("image", name))
+        except ProviderError as exc:
+            return False, str(exc)
+        if name in _LOCAL_ONLY:
+            return True, f"image:{name} disponível sem API."
+        return True, f"image:{name} registrado — requer chave de API para funcionar."
+
     if kind == "vision":
-        provider = create_vision_provider(ProviderConfig("vision", name))
-        return True, f"{provider.name} disponivel" if name == "mock" else "Provider requer configuracao externa."
-    return False, "Tipo invalido. Use text, image ou vision."
+        try:
+            provider = create_vision_provider(ProviderConfig("vision", name))
+        except ProviderError as exc:
+            return False, str(exc)
+        if name == "mock":
+            return True, "vision:mock disponível sem API."
+        return True, f"vision:{name} registrado — requer chave de API para funcionar."
+
+    return False, f"Tipo inválido: '{kind}'. Use text, image ou vision."

@@ -105,6 +105,55 @@ class StoryRenderer:
         image.convert("RGB").save(output_path, format="PNG")
         return output_path
 
+    def render_ai_output(
+        self,
+        base_image_path: Path,
+        slide: StorySlide,
+        brief: StoryBrief,
+        output_path: Path,
+        logo_embedded: bool = False,
+    ) -> Path:
+        """Salva imagem gerada pela IA adicionando apenas o contador de slide.
+
+        Quando logo_embedded=True a logo já foi incluída pela IA via /images/edit —
+        não sobrepõe nada, apenas adiciona o número do slide no canto inferior direito.
+        Quando logo_embedded=False (geração simples sem logo), adiciona nome da marca
+        em texto se não houver logo, ou faz o overlay da logo normalmente.
+        """
+        image = Image.open(base_image_path).convert("RGBA").resize((self.width, self.height))
+        margin = 64
+        meta_font = _font(28)
+        draw = ImageDraw.Draw(image, "RGBA")
+
+        if not logo_embedded:
+            if self.logo_path and self.logo_path.strip():
+                try:
+                    logo = Image.open(self.logo_path).convert("RGBA")
+                    logo.thumbnail((140, 80))
+                    image.alpha_composite(logo, (margin, margin))
+                except Exception:
+                    pass
+            else:
+                brand_font = _font(28, bold=True)
+                draw.text(
+                    (margin, margin + 8),
+                    self.brand_name,
+                    font=brand_font,
+                    fill=(255, 255, 255, 200),
+                )
+
+        counter = f"{slide.order:02d}/{brief.slides:02d}"
+        draw.text(
+            (self.width - margin - 90, self.height - margin - 36),
+            counter,
+            font=meta_font,
+            fill=(255, 255, 255, 180),
+        )
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        image.convert("RGB").save(output_path, format="PNG")
+        return output_path
+
     def _render_visual_post(
         self,
         image: Image.Image,

@@ -1,3 +1,17 @@
+import { useEffect, useRef } from "react";
+
 export function LogPanel({ lines }: { lines: string[] }) {
-  return <pre className="log-panel">{lines.length ? lines.join("\n") : "Sem logs disponiveis."}</pre>;
+  const ref = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.scrollTop = ref.current.scrollHeight;
+    }
+  }, [lines]);
+
+  return (
+    <pre className="log-panel" ref={ref}>
+      {lines.length ? lines.join("\n") : "Sem logs disponíveis."}
+    </pre>
+  );
 }

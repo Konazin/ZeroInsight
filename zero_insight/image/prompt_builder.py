@@ -13,6 +13,12 @@ IMAGE_SYSTEM_INSTRUCTION = (
     "Final text, logo, CTA, and UI elements will be added later by the application."
 )
 
+IMAGE_SYSTEM_INSTRUCTION_FULL = (
+    "You are an expert art director and brand designer creating complete, finished social media posts. "
+    "Generate polished, publication-ready images that include all text, typography, hierarchy, and visual elements. "
+    "The output is the final image — no further editing will be applied."
+)
+
 
 @dataclass
 class ImagePromptPackage:
@@ -43,6 +49,107 @@ NEGATIVE_INSTRUCTIONS = [
 
 def build_image_prompt(brief: StoryBrief, slide: StorySlide, brand_profile: BrandProfile | None = None) -> str:
     return build_story_background_prompt(brief, slide, brand_profile).prompt
+
+
+def build_full_composition_prompt(
+    brief: StoryBrief,
+    slide: StorySlide,
+    brand_profile: BrandProfile | None = None,
+    logo_path: str | None = None,
+) -> str:
+    """
+    Engenharia de prompt para gpt-image-2 gerar a composição completa do Story
+    com tipografia, hierarquia visual e texto renderizados diretamente na imagem.
+
+    Princípio: descrever o texto como elemento VISUAL da cena ("reads:", "the card shows"),
+    não como instrução separada ("embed text") — o modelo responde muito melhor assim.
+    """
+    brand_name = (brand_profile.brand_name if brand_profile else "") or ""
+    visual_style = (
+        ", ".join(brand_profile.visual_style)
+        if brand_profile and brand_profile.visual_style
+        else "modern, clean, institutional"
+    )
+    color_palette = _colors(brand_profile)
+    image_rules = _joined(
+        brand_profile.image_style_rules if brand_profile else [],
+        "professional, calm, credible, high contrast",
+    )
+    visual_idea = (slide.visual_idea or slide.image_prompt or "").strip()
+    topic_context = f"{brief.topic}. {brief.objective}".strip(". ")
+
+    # --- Seção 1: descrição holística da peça ---
+    bg_desc = (
+        f"The background depicts {visual_idea}. " if visual_idea
+        else f"The background is a richly textured {visual_style} scene. "
+    )
+    if logo_path:
+        brand_line = (
+            "In the top-left corner of the image there is already a brand logo pre-placed — "
+            "preserve it exactly, design the composition around it, and ensure sufficient contrast behind it. "
+        )
+    elif brand_name:
+        brand_line = (
+            f'At the top of the card, in small uppercase tracking, the brand name reads "{brand_name}". '
+        )
+    else:
+        brand_line = ""
+
+    # --- Seção 2: construção das cores e contraste ---
+    dark_panel = _pick_dark_panel(brand_profile)
+    accent = _pick_accent(brand_profile)
+
+    # --- Montagem do prompt ---
+    prompt = f"""\
+A finished, publication-ready Instagram Story graphic, vertical 9:16 format (1080×1920 px). \
+This is a complete graphic design — a typeset social media post, not a background.
+
+SCENE: {bg_desc}\
+The image has a dominant {dark_panel} semi-transparent rounded panel overlaid in the center \
+that gives strong contrast for white text. Color palette: {color_palette}. \
+Overall aesthetic: {visual_style}, {image_rules}. Topic context: {topic_context}.
+
+TYPOGRAPHY (all text is part of the graphic design and must be clearly rendered):
+
+The top section of the panel shows the main headline in large, heavy-weight, white sans-serif type, reading:
+"{slide.hook}"
+
+Below the headline, in smaller regular-weight white or light-grey type, the body text reads:
+"{slide.body}"
+
+In the lower third of the panel there is a prominent call-to-action button with a {accent} fill and dark text, which reads:
+"{slide.cta}"
+
+{brand_line}\
+The slide counter "{slide.order:02d}/{brief.slides:02d}" appears in small light text at the bottom-right corner.
+
+DESIGN RULES:
+- Clean typographic hierarchy: large headline > readable body > bold CTA button.
+- All text is fully legible — sufficient size, high contrast, clean sans-serif font.
+- The panel uses enough opacity to make white text pop against any background.
+- No placeholder text, no lorem ipsum, no brackets, no watermarks.
+- This is print-ready; every detail shown is part of the final published post."""
+
+    return prompt
+
+
+def _pick_dark_panel(brand_profile: BrandProfile | None) -> str:
+    """Returns a descriptive color for the dark card panel based on brand primary."""
+    if brand_profile and brand_profile.color_palette:
+        primary = brand_profile.color_palette[0]
+        return f"deep {primary.get('name', 'navy')}-toned"
+    return "deep navy-blue"
+
+
+def _pick_accent(brand_profile: BrandProfile | None) -> str:
+    """Returns a descriptive accent color for the CTA button."""
+    if brand_profile and len(brand_profile.color_palette) > 1:
+        accent = brand_profile.color_palette[1]
+        return accent.get("name", "brand accent") + f" ({accent.get('hex', '')})"
+    if brand_profile and brand_profile.color_palette:
+        primary = brand_profile.color_palette[0]
+        return primary.get("name", "brand primary") + f" ({primary.get('hex', '')})"
+    return "bright blue"
 
 
 def build_prompt_package(

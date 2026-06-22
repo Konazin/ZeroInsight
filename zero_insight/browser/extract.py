@@ -1,11 +1,12 @@
 ﻿from __future__ import annotations
 
 import re
-from typing import Any
-
-from playwright.async_api import Page
+from typing import TYPE_CHECKING, Any
 
 from zero_insight.config import Settings
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 def _parse_br_number(text: str) -> float:
