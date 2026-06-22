@@ -1,124 +1,154 @@
-# ZeroInsight
+﻿# ZeroInsight
 
-> Automação interna para coleta de métricas no dashboard Dino (sessão Brave autenticada), geração de posts jurídicos com Groq Vision e publicação assistida em Markdown.
+> Plataforma de automação de conteúdo com IA para marketing jurídico — gera Instagram Stories completos com texto, identidade visual e logotipo embutidos diretamente pela IA.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![Playwright](https://img.shields.io/badge/Playwright-CDP-green)
-![Groq](https://img.shields.io/badge/Groq-Vision-orange)
-![License](https://img.shields.io/badge/License-Uso%20restrito-red)
+![React](https://img.shields.io/badge/React-19-61dafb)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.11x-009688)
+![OpenAI](https://img.shields.io/badge/OpenAI-gpt--image--2-412991)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
-## Aviso legal e uso controlado
+## O que é
 
-**Este software foi desenvolvido para a [RequisiteRPV LTDA](https://requisite.com.br) e o uso é controlado.**
+O ZeroInsight é uma aplicação local (backend Python + frontend React) que automatiza a criação de pacotes de Instagram Stories institucionais para escritórios jurídicos e legaltechs. Dado um briefing, ele:
 
-- Uso permitido apenas para pessoas e ambientes **autorizados** pela empresa.
-- Não é software livre / open source: consulte o arquivo [`LICENSE`](LICENSE).
-- Não redistribua, não publique forks públicos e não compartilhe `.env`, chaves de API ou capturas de tela sem aprovação interna.
-- O repositório pode existir no GitHub por conveniência operacional; isso **não** autoriza uso por terceiros.
-
----
-
-## Visão geral
-
-O **ZeroInsight** conecta ao **Brave** já logado (Chrome DevTools Protocol), extrai métricas do **dashboard Dino**, captura **screenshot** da página, envia dados + imagem para a **Groq (modelo com visão)** e gera um **post de blog** para startup jurídica em Markdown.
-
-Princípios do desenho:
-
-| Princípio | Como funciona |
-|-----------|----------------|
-| Sessão legítima | Login manual pelo usuário; sem bypass de captcha ou MFA |
-| CDP | Reutiliza a aba aberta no Brave (`--remote-debugging-port`) |
-| Dados reais | Extração do DOM do Dino (visualizações, distribuições) |
-| IA multimodal | Groq Vision analisa JSON + imagem do dashboard |
-| Rastreabilidade | Log em JSONL + artefatos em `posts/` e `screenshots/` |
+1. Gera o roteiro de slides com IA de texto
+2. Monta o prompt visual completo baseado no BrandProfile da empresa
+3. Envia a logo da marca junto ao prompt para o modelo de imagem (`gpt-image-2`) via `/images/edit`, que a integra ao design gerado
+4. Exporta os PNGs finais, `manifest.json` e página de revisão HTML
 
 ---
 
-## Fluxo da pipeline
+## Stack
 
-```text
-scripts/start_brave_debug.bat
-        │
-        ▼
-Login manual no Dino (dashboard)
-        │
-        ▼
-python main.py  →  Conecta CDP  →  Extrai métricas
-        │                              │
-        │                              ▼
-        │                      Screenshot PNG
-        │                              │
-        └──────────────────────────────┼──► Groq Vision
-                                       │
-                                       ▼
-                         Post Markdown (posts/)
-                         Registro (results.jsonl)
+| Camada | Tecnologia |
+|--------|------------|
+| Backend | Python 3.10+, FastAPI, Uvicorn |
+| Frontend | React 19, TypeScript, Vite 6 |
+| Imagem IA | OpenAI `gpt-image-2` via `/images/generate` e `/images/edit` |
+| Texto IA | OpenAI, Groq, provider custom OpenAI-compatible ou mock |
+| Renderização | Pillow (contador de slide; texto gerado pela própria IA) |
+| Browser | Playwright + CDP (Brave, opcional para métricas Dino) |
+
+---
+
+## Início rápido
+
+### Windows (recomendado)
+
+```bat
+start.bat
 ```
+
+O script cria o `.venv`, instala dependências, instala o frontend e inicia backend + frontend automaticamente.
+
+### Manual
+
+```bash
+# Backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+python start.py          # inicia backend (porta 8765) e abre o frontend
+
+# Frontend (em outro terminal)
+cd frontend
+npm install
+npm run dev              # porta 5173
+```
+
+Acesse `http://127.0.0.1:5173`.
 
 ---
 
 ## Funcionalidades
 
-- **Terminal interativo** (Rich + InquirerPy) com verificação de ambiente, edição de `.env` e histórico
-- **CLI direta**: `python main.py --check` e `python main.py --run`
-- **Extração** do resumo do dashboard Dino (`.box-resumo-trafego`)
-- **Screenshot** da viewport e recorte do bloco de resumo
-- **Geração de post** com título, subtítulo, corpo Markdown, tags, CTA e meta descrição
-- **Pacotes de Instagram Stories** 9:16 com roteiro, PNG final, marca, CTA e página de revisão
-- **Retry** com backoff exponencial em falhas transitórias
+### Gerador de Stories (wizard 4 etapas)
+
+| Etapa | O que faz |
+|-------|-----------|
+| **1 — Marca** | Seleciona o BrandProfile (ou "sem marca") |
+| **2 — Briefing** | Tema, objetivo, público, tom, CTA, número de slides, ideia visual |
+| **3 — Prompt** | Prévia do prompt gerado pela IA; modo **Assistido** ou **Manual** |
+| **4 — Gerar** | Escolhe provedor de imagem e dispara a pipeline |
+
+**Modo assistido:** a IA monta o prompt completo por slide com injeção de cores, estilo e regras do BrandProfile.
+
+**Modo manual:** o textarea fica em branco; o que o usuário escrever vai direto ao modelo sem nenhuma modificação.
+
+Templates de prompt podem ser salvos e carregados em qualquer geração futura.
+
+### Geração de imagem com IA
+
+- Usa `gpt-image-2` no formato `1024x1536` (9:16 vertical)
+- Quando há logo cadastrada: cria canvas transparente com a logo posicionada no canto superior esquerdo e usa `/images/edit` — o modelo preserva a logo e gera a composição ao redor
+- Quando não há logo: usa `/images/generate` com descrição textual da marca
+- A imagem final já contém título, corpo e CTA renderizados pela IA; o Pillow só adiciona o contador de slide
+
+### BrandProfile
+
+Cada marca tem um perfil JSON completo editável pela UI:
+
+| Seção | Campos |
+|-------|--------|
+| Identidade | Nome, resumo da empresa |
+| Tom e audiência | Tom de voz, público-alvo, estilo de CTA |
+| Linguagem | Termos preferidos, termos proibidos |
+| Conformidade | Regras de conteúdo, regras de compliance |
+| Visual | Logo (upload), paleta de cores, estilo visual, tipografia, layout, estilo de imagem, uso do logo |
+
+Importação de BrandProfile a partir de PDF ou DOCX via `/brands/import`.
+
+### Providers de IA
+
+| Tipo | Providers disponíveis |
+|------|-----------------------|
+| Texto | `openai`, `groq`, `custom` (OpenAI-compatible), `mock` |
+| Imagem | `openai` (`gpt-image-2`), `custom`, `local`, `mock` |
+| Visão | `openai`, `groq`, `custom`, `mock` |
+
+O provider `custom` aceita qualquer API no formato OpenAI-compatible (`/chat/completions` para texto, `b64_json` ou `url` para imagem).
 
 ---
 
-## Arquitetura do código
+## Arquitetura
 
-```text
-zero-insight/                    # nome da pasta do repositório (pode variar)
-├── main.py                      # Entrada: python main.py
-├── zero_insight/
-│   ├── config/                  # Settings e persistência do .env
-│   ├── core/                    # async_runner (loop seguro no Cursor/VS Code)
-│   ├── browser/                 # CDP + extração Dino
-│   ├── capture/                 # Screenshots Playwright
-│   ├── ai/                      # Groq + geração de blog jurídico
-│   ├── pipeline/                # Orquestração e JSONL
-│   └── cli/                     # Menu terminal e argparse
-├── scripts/
-│   └── start_brave_debug.bat    # Brave em modo debug (Windows)
-├── screenshots/                 # Gerado (gitignore)
-├── posts/                       # Posts .md gerados (gitignore)
-├── stories/                     # Pacotes de Stories gerados (gitignore)
-├── results.jsonl                # Histórico de execuções (gitignore)
-├── .env.example
-├── requirements.txt
-├── LICENSE                      # Uso restrito — Requisite Legal Tech
-└── README.md
 ```
-
----
-
-## Requisitos
-
-- Python **3.10+** (testado em 3.14)
-- [Brave](https://brave.com/) instalado (Windows)
-- Conta [Groq](https://console.groq.com/) com API key e modelo de **visão** habilitado
-- Acesso ao dashboard Dino (`TARGET_URL` no `.env`)
-- PySide6 para a interface desktop
-
----
-
-## Instalação
-
-```bash
-git clone https://github.com/Konazin/automacao-posts.git   # renomeie a pasta para zero-insight, se desejar
-cd automacao-posts
-
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-
-pip install -r requirements.txt
-playwright install chromium
+ZeroInsight/
+├── start.bat / start.py          # inicialização Windows
+├── zero_insight/
+│   ├── config/                   # Settings e .env
+│   ├── ai_providers/             # OpenAI, Groq, custom, mock, local
+│   ├── brand/                    # BrandProfile, validator, cache
+│   ├── browser/                  # CDP + extração Dino (opcional)
+│   ├── capture/                  # Screenshot Playwright
+│   ├── content/                  # StoryBrief, StorySlide, script planner
+│   ├── image/                    # prompt_builder (build_full_composition_prompt)
+│   ├── pipeline/                 # story_runner, runner
+│   ├── render/                   # StoryRenderer (Pillow)
+│   ├── qa/                       # validação de pacote
+│   └── server/
+│       ├── app.py                # FastAPI app
+│       ├── routes/               # brands, generation, outputs, providers,
+│       │                         #   settings, prompts, brave, health
+│       └── schemas/              # Pydantic schemas
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── brand/            # BrandProfileEditor, BrandImportPanel
+│   │   │   ├── generation/       # StoryGeneratorForm, PostGeneratorForm
+│   │   │   ├── providers/        # ProviderSettings, ProviderTestPanel
+│   │   │   └── settings/         # SettingsPanel
+│   │   ├── pages/                # Dashboard, Brands, Outputs, Logs
+│   │   ├── lib/api.ts            # cliente HTTP
+│   │   └── types.ts              # tipos TypeScript
+│   └── vite.config.ts
+├── requirements.txt
+├── .env.example
+└── LICENSE
 ```
 
 ---
@@ -129,371 +159,89 @@ playwright install chromium
 copy .env.example .env
 ```
 
-Edite `.env` — variáveis principais:
+Variáveis principais do `.env`:
 
-| Variável | Descrição |
-|----------|-----------|
-| `CDP_PORT` | Porta debug do Brave (padrão `9222`) |
-| `BRAVE_EXECUTABLE_PATH` | Caminho opcional para `brave.exe` |
-| `ZEROINSIGHT_APP_DATA_DIR` | Diretório de dados da UI, padrão `%LOCALAPPDATA%\ZeroInsight` |
-| `ZEROINSIGHT_OUTPUT_DIR` | Diretório base opcional para outputs |
-| `ZEROINSIGHT_UI_THEME` | Tema da UI, atualmente `dark` |
-| `TARGET_URL` | URL do dashboard Dino |
-| `GROQ_API_KEY` | Chave da API Groq |
-| `GROQ_VISION_MODEL` | Modelo com visão (ex.: `meta-llama/llama-4-scout-17b-16e-instruct`) |
-| `GROQ_MODEL` | Modelo texto (usado no teste `--check`) |
-| `BLOG_BRAND_NAME` | Nome da marca no post (ex.: Requisite Legal Tech) |
-| `POSTS_DIR` | Pasta dos Markdown gerados |
-| `SCREENSHOTS_DIR` | Pasta dos PNGs |
-| `OUTPUT_FILE` | Arquivo JSONL de histórico |
-| `STORIES_DIR` | Pasta dos pacotes de Stories |
-| `STORY_WIDTH` / `STORY_HEIGHT` | Dimensão final dos Stories, padrão 1080x1920 |
-| `STORY_DEFAULT_TEMPLATE` | Template padrão (`legal_clean`) |
-| `STORY_BRAND_NAME` | Marca renderizada nos Stories |
-| `STORY_BRAND_PRIMARY_COLOR` / `STORY_BRAND_SECONDARY_COLOR` | Cores do mock provider |
-| `STORY_LOGO_PATH` | Reservado para logo em versão futura |
-| `IMAGE_PROVIDER` | Provider de imagem, atualmente `mock` |
-| `DEFAULT_BRAND_PROFILE_ID` | Marca padrão para UI/CLI |
-| `DEFAULT_TEXT_PROVIDER` | Provider de texto padrão (`mock`, `custom`, `openai`, `groq`, etc.) |
-| `DEFAULT_IMAGE_PROVIDER` | Provider de imagem padrão (`mock`, `custom`, `openai`, etc.) |
-| `DEFAULT_VISION_PROVIDER` | Provider de visão padrão |
-| `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS` | Permite envio de documentos de marca a IA externa quando `true` |
-| `AI_PROVIDERS_JSON` | Configuração JSON de providers custom/OpenAI-compatible |
+| Variável | Descrição | Padrão |
+|----------|-----------|--------|
+| `OPENAI_API_KEY` | Chave OpenAI | — |
+| `OPENAI_IMAGE_MODEL` | Modelo de imagem | `gpt-image-2` |
+| `OPENAI_IMAGE_SIZE` | Tamanho da imagem | `1024x1536` |
+| `OPENAI_IMAGE_QUALITY` | Qualidade | `medium` |
+| `OPENAI_TEXT_MODEL` | Modelo de texto | `gpt-5.4-mini` |
+| `DEFAULT_TEXT_PROVIDER` | Provider padrão de texto | `mock` |
+| `DEFAULT_IMAGE_PROVIDER` | Provider padrão de imagem | `local` |
+| `GROQ_API_KEY` | Chave Groq (opcional) | — |
+| `CUSTOM_TEXT_BASE_URL` | Base URL provider custom texto | — |
+| `CUSTOM_IMAGE_BASE_URL` | Base URL provider custom imagem | — |
+| `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS` | Envia PDF/DOCX para IA externa | `false` |
+| `CDP_PORT` | Porta debug Brave (Dino, opcional) | `9222` |
+| `STORY_BRAND_NAME` | Marca padrão nos Stories | `Requisite` |
+| `STORY_BRAND_PRIMARY_COLOR` | Cor primária mock | `#111827` |
+| `STORY_BRAND_SECONDARY_COLOR` | Cor secundária mock | `#2563EB` |
 
-**Nunca** commite o arquivo `.env` (já está no `.gitignore`).
+> `.env` está no `.gitignore`. Nunca commite chaves de API.
 
 ---
 
-## Uso
+## API
 
-### 1. Iniciar o Brave em modo debug
+O backend roda em `http://127.0.0.1:8765`. Endpoints principais:
 
-```bat
-scripts\start_brave_debug.bat
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/health` | Status do servidor |
+| GET/POST | `/api/settings` | Leitura e gravação de configurações |
+| GET | `/api/providers` | Providers disponíveis e ativos |
+| POST | `/api/providers/test` | Testa provider por tipo e nome |
+| GET | `/api/brands` | Lista BrandProfiles |
+| GET | `/api/brands/{id}` | Detalhes do BrandProfile |
+| PUT | `/api/brands/{id}` | Atualiza BrandProfile |
+| POST | `/api/brands/{id}/logo` | Upload de logo (PNG/JPG/WEBP) |
+| GET | `/api/brands/{id}/logo` | Serve a logo |
+| POST | `/api/brands/import` | Importa PDF/DOCX como BrandProfile |
+| POST | `/api/generate/story` | Gera pacote de Stories |
+| POST | `/api/generate/post` | Gera post de blog |
+| POST | `/api/generate/image-preview` | Retorna prompt de composição |
+| GET | `/api/prompts` | Lista templates de prompt |
+| POST | `/api/prompts` | Salva template |
+| DELETE | `/api/prompts/{id}` | Remove template |
+| GET | `/api/outputs` | Lista saídas geradas |
+| POST | `/api/brave/start` | Inicia Brave com CDP |
+
+---
+
+## Saídas geradas
+
+Cada geração de Stories produz uma pasta em `stories/`:
+
 ```
-
-- Abre o Brave com perfil isolado (`BraveAutomationDebug`)
-- Navega para o dashboard Dino
-- Faça login manualmente e mantenha a aba do dashboard aberta
-
-### 2. Executar a aplicação
-
-**Menu interativo (recomendado):**
-
-```bash
-python main.py
-```
-
-**Linha de comando:**
-
-```bash
-python main.py --check    # testa Brave CDP + Groq
-python main.py --run      # pipeline completo sem menu
-python main.py --ui       # abre a interface desktop
-python main.py --story --topic "RPV Federal" --slides 3 --cta "Fale com a Requisite"
-python main.py --story --topic "RPV Federal" --slides 3 --brand "Requisite"
-python main.py --import-brand-doc "manual.pdf" --brand-name "Requisite"
-python main.py --list-ai-providers
-python main.py --test-ai-provider text:mock
-python main.py --story --template legal_clean
-python main.py --story --from-dino
-python -m zero_insight   # equivalente ao menu
-```
-
-### 3. Saídas geradas
-
-| Artefato | Conteúdo |
-|----------|----------|
-| `posts/YYYYMMDD_titulo.md` | Post pronto para revisão/publicação |
-| `screenshots/dashboard_*.png` | Captura da tela |
-| `screenshots/resumo_*.png` | Recorte do bloco de métricas |
-| `results.jsonl` | JSON por linha: input, screenshot, blog_post, paths |
-
-### 4. Interface desktop
-
-```bash
-python main.py --ui
-python -m zero_insight.desktop.app
-```
-
-A UI abre em tema escuro e organiza os fluxos em Dashboard, Ambiente, Brave, Gerar Post, Gerar Stories, Saídas, Configurações e Logs.
-
-| Tela | O que faz |
-|------|-----------|
-| Dashboard | Mostra status de Brave, CDP, URL, API, última execução e último output |
-| Ambiente | Roda checks equivalentes ao `--check` e mostra ações recomendadas |
-| Brave | Detecta `brave.exe`, instala via `winget` quando disponível, inicia Brave dedicado com CDP e abre o dashboard |
-| Gerar Post | Chama a pipeline antiga de blog Markdown sem duplicar lógica |
-| Gerar Stories | Chama a pipeline de Stories e gera PNGs, `manifest.json`, `story_script.json` e `review.html` |
-| Saídas | Lista posts e campanhas recentes e abre a pasta de saída |
-| Configurações | Salva `.env` local com URL, porta, chaves e marca |
-| Logs | Mostra logs em tempo real, com botões copiar e limpar |
-| Marcas | Importa PDF/DOCX, gera e edita BrandProfile, valida e define marca padrão |
-| IA / Providers | Escolhe providers padrão, cadastra provider custom e testa geração curta |
-
-O botão **Instalar Brave** tenta `winget install -e --id Brave.Brave` e depois `winget install -e --id BraveSoftware.BraveBrowser`. Se `winget` não existir ou falhar, a UI abre a página oficial `https://brave.com/download/`.
-
-O botão **Iniciar Brave para ZeroInsight** usa perfil dedicado em `%LOCALAPPDATA%\ZeroInsight\brave-profile`:
-
-```text
---remote-debugging-port=9222
---user-data-dir=<appdata>/ZeroInsight/brave-profile
-```
-
-O login no Dino continua manual. A UI não automatiza senha, captcha ou MFA.
-
-### 5. Brand Intelligence
-
-O ZeroInsight pode importar um manual de comunicação visual em PDF ou DOCX e gerar um `BrandProfile` estruturado. O fluxo local padrão não envia o documento para IA externa.
-
-```bash
-python main.py --import-brand-doc "manual.pdf"
-python main.py --import-brand-doc "manual.docx" --brand-name "Requisite"
-```
-
-Saída esperada:
-
-```text
-%LOCALAPPDATA%/ZeroInsight/brands/
-  requisite/
-    brand_profile.json
-    source/
-      manual.pdf
-    assets/
-      extracted_image_01.png
-```
-
-Em ambiente de desenvolvimento sem permissão de escrita em `%LOCALAPPDATA%`, o app usa `.zeroinsight_appdata/` dentro do projeto, que está no `.gitignore`.
-
-O `BrandProfile` contém nome da marca, resumo, tom de voz, termos proibidos/preferidos, paleta, regras de logo/layout/imagem, público, CTA e regras de compliance. Se nenhuma IA externa estiver configurada, a extração usa heurísticas locais e marca o perfil como `needs_review`.
-
-### 6. IA / Providers
-
-Providers disponíveis no MVP:
-
-| Tipo | Providers |
-|------|-----------|
-| Texto | `mock`, `custom`, `openai`, `anthropic`, `gemini`, `groq` |
-| Imagem | `mock`, `custom`, `openai`, `stability`, `replicate` |
-| Visão | `mock`, `custom`, `openai`, `gemini`, `groq` |
-
-O provider `custom` usa formato OpenAI-compatible no MVP. Configure por `AI_PROVIDERS_JSON` ou pela tela **IA / Providers**.
-
-```bash
-python main.py --list-ai-providers
-python main.py --test-ai-provider text:mock
-python main.py --test-ai-provider text:custom
-```
-
-Exemplo simplificado de `AI_PROVIDERS_JSON`:
-
-```json
-{
-  "text": {
-    "custom": {
-      "model": "modelo",
-      "base_url": "https://api.exemplo.com/v1",
-      "api_key_env": "CUSTOM_AI_KEY"
-    }
-  }
-}
-```
-
-Ao usar IA externa para documentos de marca, o conteúdo do documento poderá ser enviado ao provider configurado. Isso só deve ser habilitado com `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS=true` ou pela UI.
-
-### 7. Gerar Instagram Stories
-
-O comando `--story` gera um pacote para revisão humana e publicação manual. Esta entrega **não** publica automaticamente no Instagram.
-
-```bash
-python main.py --story
-python main.py --story --topic "RPV Federal" --slides 3 --cta "Fale com a Requisite"
-python main.py --story --topic "RPV Federal" --slides 3 --brand "Requisite"
-python main.py --story --template legal_clean
-python main.py --story --from-dino
-```
-
-Entradas aceitas pela CLI:
-
-| Opção | Descrição |
-|-------|-----------|
-| `--topic` | Tema da campanha |
-| `--objective` | Objetivo do roteiro |
-| `--audience` | Público-alvo |
-| `--tone` | Tom de voz |
-| `--cta` | Chamada para ação |
-| `--slides` | Quantidade de Stories |
-| `--template` | Template visual (`legal_clean` ou `metric_card`) |
-| `--from-dino` | Tenta reaproveitar métricas do dashboard Dino via CDP |
-| `--brand` | Usa BrandProfile salvo para tom, cores, CTA e validação |
-| `--ai-text-provider` | Provider de texto |
-| `--ai-image-provider` | Provider de imagem |
-
-Saída gerada:
-
-```text
 stories/
-  YYYYMMDD_nome_da_campanha/
-    manifest.json
-    story_script.json
-    story_01.png
+  YYYYMMDD_nome_campanha/
+    manifest.json          # providers usados, validação, paths
+    story_script.json      # roteiro completo por slide
+    story_01_base.png      # imagem bruta da IA
+    story_01.png           # imagem final (com contador)
+    story_02_base.png
     story_02.png
-    story_03.png
-    review.html
+    review.html            # página de revisão visual
 ```
 
-O MVP usa `IMAGE_PROVIDER=mock`, sem API externa. O provider cria uma imagem base simples em PNG 1080x1920 e o texto real é renderizado depois pelo sistema com Pillow. O `manifest.json` registra paths relativos, status do pacote e resultado da validação.
-
-Quando uma marca é informada, o Story aplica cores e nome da marca, ajusta copy/prompt visual com o BrandProfile e grava `brand_profile_used`, `ai_providers_used` e `brand_validation` no manifest.
+O `manifest.json` registra providers, modelos, prompts usados, `revised_prompt` da OpenAI quando disponível, e resultado da validação de compliance da marca.
 
 ---
 
-## Build Windows
+## Conformidade e segurança
 
-O build usa PyInstaller e, se disponível, Inno Setup.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
-```
-
-O script cria `.venv-build`, instala dependências, roda `compileall`, gera `dist/ZeroInsight/ZeroInsight.exe` e compila `packaging/inno/zeroinsight.iss` quando `iscc.exe` está instalado.
-
-O executável empacotado abre a UI por padrão. O bundle inclui templates e prompts, mas não inclui `.env`, screenshots, posts, stories ou outputs do usuário.
-
-Para gerar instalador manualmente:
-
-```powershell
-iscc packaging\inno\zeroinsight.iss
-```
+- Sem publicação automática no Instagram
+- Login no Dino continua manual (sem bypass de captcha ou MFA)
+- API keys apenas em `.env` local, nunca versionadas
+- Documentos de marca só enviados a IA externa com `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS=true`
+- Stories validados contra promessas absolutas ("garantido", "100% aprovado", "sem risco")
+- Todo pacote fica em `AWAITING_REVIEW` até aprovação humana
+- Logs não imprimem API keys nem conteúdo de documentos
 
 ---
 
-## Menu do terminal
+## Licença
 
-| Opção | Ação |
-|-------|------|
-| Executar pipeline | Extração → screenshot → Groq → salvar |
-| Verificar conexões | Testa CDP (Brave) e API Groq |
-| Ver / editar configuração | Consulta ou altera `.env` |
-| Histórico | Últimos registros do JSONL |
-| Ajuda | Pré-requisitos e comandos |
-
-Se o menu com setas falhar (alguns terminais do IDE), use o **menu numérico** alternativo.
-
----
-
-## Segurança e conformidade
-
-- Não implementa bypass de captcha, MFA ou autenticação
-- Credenciais apenas em variáveis de ambiente
-- Sessão iniciada pelo usuário no navegador
-- Dados de dashboard e posts podem conter informação operacional — tratar como **confidencial**
-- Uso alinhado às políticas internas da RequisiteRPV e à LGPD
-- Stories são validados contra promessas absolutas como "garantido", "100% aprovado", "sem risco" e "dinheiro imediato garantido"
-- Todo pacote de Stories fica em status `AWAITING_REVIEW` antes de qualquer uso externo
-- API keys não devem ser versionadas; use `.env` local ou variáveis de ambiente
-- Logs não imprimem API key nem documento completo
-- Documentos de marca só devem ser enviados a IA externa com autorização explícita
-
----
-
-## Limitações conhecidas
-
-- Depende da estrutura atual do DOM do Dino (classes `.box-resumo-trafego`)
-- Requer Brave aberto com debug na porta configurada
-- Modelo Groq Vision deve estar disponível na conta
-- Mudanças na interface do Dino podem exigir ajuste em `zero_insight/browser/extract.py`
-- Publicação automática no Instagram ainda não foi implementada
-- O provider de imagem real ainda não existe; o MVP usa `MockImageProvider`
-- Templates HTML existem como estrutura, mas a renderização final atual usa Pillow para compatibilidade Windows
-- PDF escaneado sem texto não passa por OCR no MVP
-- Providers Anthropic/Gemini/Stability/Replicate são adapters preparados; sem credenciais/configuração retornam erro amigável
-- Provider custom aceita formato OpenAI-compatible no MVP
-
----
-
-## Desenvolvimento interno
-
-```bash
-python -m py_compile main.py zero_insight/cli/main.py zero_insight/pipeline/runner.py
-```
-
-Módulos principais:
-
-- `zero_insight.browser.extract` — métricas do dashboard
-- `zero_insight.capture.screenshot` — PNGs
-- `zero_insight.ai.blog` — prompt jurídico + Groq Vision
-- `zero_insight.pipeline.runner` — orquestração e retries
-
----
-
-## Problemas comuns
-
-| Sintoma | Solução |
-|---------|---------|
-| Falha ao conectar CDP | Execute `scripts\start_brave_debug.bat` e mantenha o Brave aberto |
-| Métricas zeradas / N/A | Aguarde o dashboard carregar; confira a aba correta do Dino |
-| Erro no modelo Groq | Verifique `GROQ_VISION_MODEL` e permissões da chave |
-| Menu não abre no IDE | Use o menu numérico ou terminal `cmd` / PowerShell externo |
-| `MissingStyle` / UI | Atualize para a versão mais recente do repositório |
-
----
-
-## Licença e propriedade
-
-Software proprietário desenvolvido para a **RequisiteRPV LTDA**. Uso restrito conforme [`LICENSE`](LICENSE).
-
-Não utilize, copie ou distribua este projeto fora do escopo autorizado pela empresa.
-
----
-
-## Contato interno
-
-Para liberação de acesso, dúvidas de compliance ou evolução do produto, contate a equipe de tecnologia / responsável pelo projeto na RequisiteRPV LTDA.
- 
-
----
-
-## Arquitetura frontend/backend local
-
-Esta versao adiciona uma API interna em Python com FastAPI e um frontend web moderno em `frontend/`, sem remover a CLI nem a UI desktop PySide6.
-
-Backend:
-
-```bash
-python main.py --server
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Abra `http://127.0.0.1:5173`. O frontend consome `http://127.0.0.1:8765/api`.
-
-Endpoints principais: `/api/health`, `/api/settings`, `/api/providers`, `/api/brands`, `/api/generate/post`, `/api/generate/story`, `/api/generate/image-preview`, `/api/outputs`, `/api/logs`, `/api/brave/start` e `/api/brave/status`.
-
-### OpenAI Platform
-
-Configure `.env` a partir de `.env.example` com `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_TEXT_MODEL`, `OPENAI_REASONING_MODEL`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_SIZE`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_FORMAT`, `OPENAI_IMAGE_BACKGROUND`, `TEXT_PROVIDER` e `DEFAULT_IMAGE_PROVIDER`.
-
-O provider de texto usa a Responses API via SDK oficial `openai`. O provider de imagem usa a Images API e reforca no prompt que a IA deve gerar somente fundo/base visual, sem texto, logotipo ficticio, marca falsa ou promessas juridicas/financeiras.
-
-### Provider custom OpenAI-compatible
-
-Use `CUSTOM_TEXT_BASE_URL`, `CUSTOM_TEXT_ENDPOINT`, `CUSTOM_TEXT_MODEL`, `CUSTOM_TEXT_API_KEY`, `CUSTOM_IMAGE_BASE_URL`, `CUSTOM_IMAGE_ENDPOINT`, `CUSTOM_IMAGE_MODEL` e `CUSTOM_IMAGE_API_KEY`. Texto suporta `/chat/completions` ou `/responses`; imagem aceita `b64_json` ou `url`.
-
-### Privacidade, custos e mock
-
-API keys sao mascaradas, PDF/DOCX de marca nao sao enviados para IA externa sem `ALLOW_EXTERNAL_AI_FOR_BRAND_DOCS=true`, o modo `mock`/`local` continua disponivel, e o sistema nao publica no Instagram nem automatiza login/captcha/MFA.
-
-### Manifest e prompts
-
-Pacotes de Stories registram providers/modelos usados, prompts de imagem completos, metadados OpenAI incluindo `revised_prompt` quando existir, e validacoes de marca/compliance/safe zone.
-
-### Build Windows futuro
-
-O backend permanece Python. O frontend web foi separado para permitir empacotamento futuro com Tauri ou abordagem equivalente, mantendo a API local como camada de integracao com as pipelines existentes.
+MIT — veja [LICENSE](LICENSE).
