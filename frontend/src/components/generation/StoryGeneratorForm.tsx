@@ -500,7 +500,11 @@ function Step2Prompt(props: {
   }, []);
 
   async function handleSave() {
-    if (!saveName.trim() || !props.prompt.trim()) return;
+    if (!saveName.trim()) return;
+    if (!props.prompt.trim()) {
+      props.setFeedback({ text: "O prompt está vazio — gere ou escreva um prompt antes de salvar.", kind: "error" });
+      return;
+    }
     setSaving(true);
     try {
       const t = await api.savePrompt({
@@ -512,8 +516,8 @@ function Step2Prompt(props: {
       setSaveName("");
       setShowSave(false);
       props.setFeedback({ text: `Template "${t.name}" salvo.`, kind: "success" });
-    } catch {
-      props.setFeedback({ text: "Falha ao salvar template.", kind: "error" });
+    } catch (err) {
+      props.setFeedback({ text: err instanceof Error ? err.message : "Falha ao salvar template.", kind: "error" });
     } finally {
       setSaving(false);
     }

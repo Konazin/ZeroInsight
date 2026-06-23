@@ -4,11 +4,18 @@ const API_BASE = import.meta.env.VITE_ZEROINSIGHT_API ?? "http://127.0.0.1:8765/
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
+    headers: { ...(init?.headers ?? {}), "Content-Type": "application/json" },
   });
   if (!response.ok) {
-    const detail = await response.text();
+    const text = await response.text();
+    let detail = text;
+    try {
+      const json = JSON.parse(text) as { detail?: string };
+      if (json.detail) detail = String(json.detail);
+    } catch {
+      // text is not JSON, use as-is
+    }
     throw new Error(detail || `HTTP ${response.status}`);
   }
   return response.json() as Promise<T>;
