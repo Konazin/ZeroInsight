@@ -163,7 +163,12 @@ export function StoryGeneratorForm() {
   }
 
   return (
-    <section className="panel">
+    <div>
+      <div className="page-header">
+        <h1 className="page-header-title">Gerar Stories</h1>
+        <p className="page-header-desc">Crie um pacote de stories para Instagram em 4 etapas — marca, briefing, prompt e geração.</p>
+      </div>
+      <section className="panel">
       <StepBar
         current={step}
         labels={STEP_LABELS}
@@ -248,7 +253,8 @@ export function StoryGeneratorForm() {
           onPrev={() => goTo(2)}
         />
       )}
-    </section>
+      </section>
+    </div>
   );
 }
 
@@ -307,9 +313,9 @@ function Step0Brand({
   return (
     <div>
       <div className="wizard-step-header">
-        <h3 className="wizard-step-title">Selecione a marca</h3>
+        <h3 className="wizard-step-title">Qual marca você quer usar?</h3>
         <p className="wizard-step-desc">
-          A marca define identidade visual e tom de comunicação dos stories.
+          A marca define identidade visual, tom e cores dos stories. Você pode pular e usar as configurações padrão.
         </p>
       </div>
 
@@ -320,7 +326,7 @@ function Step0Brand({
         >
           <span className="brand-card-icon"><Tags size={16} /></span>
           <span className="brand-card-name">Sem marca</span>
-          <span className="brand-card-hint">Usar configuração padrão</span>
+          <span className="brand-card-hint">Configuração padrão do sistema</span>
         </button>
 
         {brands.map((b) => (
@@ -337,14 +343,14 @@ function Step0Brand({
       </div>
 
       {brands.length === 0 && (
-        <p style={{ fontSize: 13, color: "var(--text-subtle)", marginTop: 10 }}>
-          Nenhuma marca importada — vá até a aba <strong>Marcas</strong> para importar.
+        <p style={{ fontSize: 13, color: "var(--text-subtle)", marginTop: 12, padding: "10px 14px", background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
+          Nenhuma marca importada ainda. Vá em <strong>Biblioteca → Marcas</strong> para adicionar.
         </p>
       )}
 
       <div className="wizard-nav" style={{ justifyContent: "flex-end" }}>
         <button onClick={onNext}>
-          Próximo: Briefing <ChevronRight size={16} />
+          Continuar para briefing <ChevronRight size={16} />
         </button>
       </div>
     </div>
@@ -370,87 +376,96 @@ function Step1Briefing(props: {
   return (
     <div>
       <div className="wizard-step-header">
-        <h3 className="wizard-step-title">Configure o briefing</h3>
+        <h3 className="wizard-step-title">Sobre o que é esse story?</h3>
         <p className="wizard-step-desc">
-          Defina o conteúdo, contexto e aparência visual dos stories.
+          Preencha o tema principal e as informações de contexto. Campos em branco usam os valores sugeridos.
         </p>
       </div>
 
-      <div className="briefing-grid">
-        <label className="field full-span">
-          <span>
-            Tema{" "}
-            <span style={{ color: "var(--danger)", fontWeight: 400, textTransform: "none" }}>*</span>
-          </span>
-          <input
-            value={props.topic}
-            onChange={(e) => props.setTopic(e.target.value)}
-            placeholder="Ex: RPV Federal"
-            autoFocus
-          />
-        </label>
-
-        <label className="field">
-          <span>Objetivo</span>
-          <input
-            value={props.objective}
-            onChange={(e) => props.setObjective(e.target.value)}
-            placeholder={DEFAULTS.objective}
-          />
-        </label>
-        <label className="field">
-          <span>Público-alvo</span>
-          <input
-            value={props.audience}
-            onChange={(e) => props.setAudience(e.target.value)}
-            placeholder={DEFAULTS.audience}
-          />
-        </label>
-        <label className="field">
-          <span>Tom de voz</span>
-          <input
-            value={props.tone}
-            onChange={(e) => props.setTone(e.target.value)}
-            placeholder={DEFAULTS.tone}
-          />
-        </label>
-        <label className="field">
-          <span>CTA</span>
-          <input
-            value={props.cta}
-            onChange={(e) => props.setCta(e.target.value)}
-            placeholder={DEFAULTS.cta}
-          />
-        </label>
-        <label className="field">
-          <span>Número de slides</span>
-          <input
-            type="number" min={1} max={10} value={props.slides}
-            onChange={(e) =>
-              props.setSlides(Math.max(1, Math.min(10, Number(e.target.value))))
-            }
-          />
-        </label>
-        <label className="field">
-          <span>Ideia visual para imagem</span>
-          <input
-            value={props.visualIdea}
-            onChange={(e) => props.setVisualIdea(e.target.value)}
-            placeholder={DEFAULTS.visualIdea}
-          />
-        </label>
-        <label className="field full-span">
-          <span>
-            Resumo da empresa{" "}
-            <span style={{ color: "var(--text-subtle)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-              (opcional — use sem Dino CDP)
+      {/* Seção 1 — Tema */}
+      <div className="form-section">
+        <div className="form-section-label">Tema e mensagem</div>
+        <div className="form-section-grid">
+          <label className="field full">
+            <span>
+              Tema principal{" "}
+              <span style={{ color: "var(--danger)", fontWeight: 400, textTransform: "none" }}>*</span>
             </span>
-          </span>
+            <input
+              value={props.topic}
+              onChange={(e) => props.setTopic(e.target.value)}
+              placeholder="Ex: RPV Federal"
+              autoFocus
+            />
+          </label>
+          <label className="field">
+            <span>Objetivo</span>
+            <input
+              value={props.objective}
+              onChange={(e) => props.setObjective(e.target.value)}
+              placeholder={DEFAULTS.objective}
+            />
+          </label>
+          <label className="field">
+            <span>Público-alvo</span>
+            <input
+              value={props.audience}
+              onChange={(e) => props.setAudience(e.target.value)}
+              placeholder={DEFAULTS.audience}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Seção 2 — Visual e formato */}
+      <div className="form-section">
+        <div className="form-section-label">Visual e formato</div>
+        <div className="form-section-grid">
+          <label className="field">
+            <span>Tom de voz</span>
+            <input
+              value={props.tone}
+              onChange={(e) => props.setTone(e.target.value)}
+              placeholder={DEFAULTS.tone}
+            />
+          </label>
+          <label className="field">
+            <span>Ideia visual</span>
+            <input
+              value={props.visualIdea}
+              onChange={(e) => props.setVisualIdea(e.target.value)}
+              placeholder={DEFAULTS.visualIdea}
+            />
+          </label>
+          <label className="field">
+            <span>CTA (chamada para ação)</span>
+            <input
+              value={props.cta}
+              onChange={(e) => props.setCta(e.target.value)}
+              placeholder={DEFAULTS.cta}
+            />
+          </label>
+          <label className="field">
+            <span>Número de slides</span>
+            <input
+              type="number" min={1} max={10} value={props.slides}
+              onChange={(e) =>
+                props.setSlides(Math.max(1, Math.min(10, Number(e.target.value))))
+              }
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Seção 3 — Contexto opcional */}
+      <div className="form-section">
+        <div className="form-section-label">Contexto da empresa <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: 10, color: "var(--text-subtle)" }}>(opcional)</span></div>
+        <label className="field" style={{ margin: 0 }}>
           <textarea
             value={props.companySummary}
             onChange={(e) => props.setCompanySummary(e.target.value)}
             rows={3}
-            placeholder="Descreva brevemente o que a empresa faz..."
+            placeholder="Descreva brevemente o que a empresa faz, seus diferenciais ou público. Usado para enriquecer o conteúdo gerado."
             style={{ resize: "vertical" }}
           />
         </label>
@@ -461,7 +476,7 @@ function Step1Briefing(props: {
           <ChevronLeft size={16} /> Voltar
         </button>
         <button onClick={props.onNext} disabled={!canNext}>
-          Pré-visualizar prompt <ChevronRight size={16} />
+          Ver prompt de imagem <ChevronRight size={16} />
         </button>
       </div>
     </div>
@@ -778,19 +793,23 @@ function Step3Generate(props: {
   return (
     <div>
       <div className="wizard-step-header">
-        <h3 className="wizard-step-title">Revisar e gerar</h3>
+        <h3 className="wizard-step-title">Tudo pronto para gerar</h3>
         <p className="wizard-step-desc">
-          Confirme as configurações e escolha o provedor de imagem antes de gerar.
+          Revise o resumo e escolha o provedor de imagem. Após gerar, as imagens aparecem logo abaixo.
         </p>
       </div>
 
-      <div className="gen-summary">
-        <SummaryRow label="Marca" value={props.brand?.name ?? "Sem marca"} />
-        <SummaryRow label="Tema" value={props.topic} />
-        <SummaryRow label="Slides" value={String(props.slides)} />
-        <SummaryRow label="Público" value={props.audience} />
-        <SummaryRow label="Tom" value={props.tone} />
-        <SummaryRow label="CTA" value={props.cta} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 0 }}>
+        <div className="gen-summary">
+          <SummaryRow label="Marca"  value={props.brand?.name ?? "Sem marca"} />
+          <SummaryRow label="Tema"   value={props.topic} />
+          <SummaryRow label="Slides" value={`${props.slides} slide${props.slides !== 1 ? "s" : ""}`} />
+        </div>
+        <div className="gen-summary">
+          <SummaryRow label="Público" value={props.audience} />
+          <SummaryRow label="Tom"     value={props.tone} />
+          <SummaryRow label="CTA"     value={props.cta} />
+        </div>
       </div>
 
       {/* Provider picker */}
@@ -823,9 +842,13 @@ function Step3Generate(props: {
       )}
 
       {!props.result && (
-        <button onClick={props.onGenerate} disabled={props.generating} style={{ marginTop: 16 }}>
-          <PackageCheck size={16} />
-          {props.generating ? "Gerando pacote…" : "Gerar pacote de stories"}
+        <button
+          onClick={props.onGenerate}
+          disabled={props.generating}
+          style={{ marginTop: 20, width: "100%", justifyContent: "center", padding: "13px 24px", fontSize: 15, fontWeight: 700, borderRadius: 10, boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}
+        >
+          <PackageCheck size={17} />
+          {props.generating ? "Gerando pacote…" : "Gerar stories agora"}
         </button>
       )}
 

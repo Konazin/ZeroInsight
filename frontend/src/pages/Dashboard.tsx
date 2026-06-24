@@ -1,56 +1,82 @@
+import { ArrowRight, FileText, FolderOpen, Image, Tags } from "lucide-react";
 import type { ReactNode } from "react";
-import { Tags, Image, FileText, FolderOpen } from "lucide-react";
 import type { Page } from "../App";
-import { StatusCard } from "../components/common/StatusCard";
 import type { Health, ProviderState } from "../types";
 
 export function Dashboard({ health, providers, onNavigate }: { health: Health | null; providers: ProviderState | null; onNavigate: (page: Page) => void }) {
-  const backendTone = health ? "success" : "danger";
-  const openaiTone = providers?.openai.configured ? "success" : "warning";
+  const backendOnline = Boolean(health);
+  const openaiOk = Boolean(providers?.openai.configured);
 
   return (
     <>
-      <div className="grid four">
-        <StatusCard title="Backend" value={health ? "Online" : "Offline"} tone={backendTone} />
-        <StatusCard title="OpenAI" value={providers?.openai.configured ? "Configurada" : "Pendente"} tone={openaiTone} />
-        <StatusCard title="Provedor de Texto" value={providers?.active.text ?? "-"} />
-        <StatusCard title="Provedor de Imagem" value={providers?.active.image ?? "-"} />
+      {/* Hero — ação principal */}
+      <div className="dash-hero">
+        <div className="dash-hero-body">
+          <div className="dash-hero-icon">
+            <Image size={22} />
+          </div>
+          <div className="dash-hero-text">
+            <h2 className="dash-hero-title">Criar novo Story</h2>
+            <p className="dash-hero-desc">
+              Gere um pacote completo de stories para Instagram com IA — escolha a marca, descreva o tema e receba as imagens prontas.
+            </p>
+          </div>
+        </div>
+        <button className="dash-hero-btn" onClick={() => onNavigate("stories")}>
+          Criar agora <ArrowRight size={16} />
+        </button>
       </div>
 
-      <section className="panel">
-        <div className="section-header">
-          <h2>Ações rápidas</h2>
+      {/* Status compacto */}
+      <div className="dash-status-strip">
+        <div className="dash-status-item">
+          <span className={`status-dot ${backendOnline ? "online" : "offline"}`} />
+          <span>Backend {backendOnline ? "online" : "offline"}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
-          <QuickAction icon={<Tags size={18} />} label="Importar marca" desc="Adicionar PDF ou DOCX de marca" onClick={() => onNavigate("brands")} />
-          <QuickAction icon={<Image size={18} />} label="Gerar Story" desc="Criar pacote de stories para Instagram" onClick={() => onNavigate("stories")} />
-          <QuickAction icon={<FileText size={18} />} label="Gerar Post" desc="Gerar post jurídico via pipeline" onClick={() => onNavigate("posts")} />
-          <QuickAction icon={<FolderOpen size={18} />} label="Ver saídas" desc="Visualizar arquivos gerados" onClick={() => onNavigate("outputs")} />
+        <div className="dash-status-divider" />
+        <div className="dash-status-item">
+          <span className={`status-dot ${openaiOk ? "online" : "warning"}`} />
+          <span>OpenAI {openaiOk ? "configurada" : "não configurada"}</span>
         </div>
-      </section>
-
-      {providers?.openai.configured && (
-        <section className="panel">
-          <div className="section-header"><h2>Modelos OpenAI ativos</h2></div>
-          <div className="grid three">
-            <div className="mini-card">Texto<strong>{providers.openai.text_model || "-"}</strong></div>
-            <div className="mini-card">Imagem<strong>{providers.openai.image_model || "-"} ({providers.openai.image_size})</strong></div>
-            <div className="mini-card">Raciocínio<strong>{providers.openai.reasoning_model || "-"}</strong></div>
+        {openaiOk && providers?.openai && (
+          <div className="dash-status-models">
+            {providers.openai.text_model  && <span className="dash-model-pill">📝 {providers.openai.text_model}</span>}
+            {providers.openai.image_model && <span className="dash-model-pill">🖼 {providers.openai.image_model}</span>}
           </div>
-        </section>
-      )}
+        )}
+      </div>
+
+      {/* Ações secundárias */}
+      <div className="dash-actions">
+        <SecondaryAction
+          icon={<Tags size={16} />}
+          label="Gerenciar Marcas"
+          desc="Importe e edite perfis de marca para personalização automática"
+          onClick={() => onNavigate("brands")}
+        />
+        <SecondaryAction
+          icon={<FileText size={16} />}
+          label="Gerar Post"
+          desc="Crie posts individuais via pipeline de texto e imagem"
+          onClick={() => onNavigate("posts")}
+        />
+        <SecondaryAction
+          icon={<FolderOpen size={16} />}
+          label="Ver Saídas"
+          desc="Acesse os arquivos e imagens gerados anteriormente"
+          onClick={() => onNavigate("outputs")}
+        />
+      </div>
     </>
   );
 }
 
-function QuickAction({ icon, label, desc, onClick }: { icon: ReactNode; label: string; desc: string; onClick: () => void }) {
+function SecondaryAction({ icon, label, desc, onClick }: { icon: ReactNode; label: string; desc: string; onClick: () => void }) {
   return (
-    <button className="quick-action" onClick={onClick}>
-      <span className="quick-action-icon">{icon}</span>
-      <span className="quick-action-body">
-        <span className="quick-action-label">{label}</span>
-        <span className="quick-action-desc">{desc}</span>
-      </span>
+    <button className="dash-action" onClick={onClick}>
+      <span className="dash-action-icon">{icon}</span>
+      <span className="dash-action-label">{label}</span>
+      <span className="dash-action-desc">{desc}</span>
     </button>
   );
 }

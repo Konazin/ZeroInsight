@@ -1,4 +1,4 @@
-import { BarChart3, Bot, FileText, FolderOpen, Home, Image, ScrollText, Settings, Tags } from "lucide-react";
+import { BarChart3, Bot, FileText, FolderOpen, Home, Image, ScrollText, Settings, Sparkles, Tags } from "lucide-react";
 import type { ComponentType } from "react";
 import type { Page } from "../../App";
 import { cn } from "../../lib/utils";
@@ -11,24 +11,29 @@ type NavGroup = {
 const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "brands", label: "Marcas", icon: Tags },
+      { id: "dashboard", label: "Início", icon: Home },
     ],
   },
   {
-    label: "Conteúdo",
+    label: "Criar",
     items: [
-      { id: "stories", label: "Gerar Stories", icon: Image },
-      { id: "posts", label: "Gerar Posts", icon: FileText },
+      { id: "stories", label: "Stories", icon: Image },
+      { id: "posts",   label: "Posts",   icon: FileText },
+    ],
+  },
+  {
+    label: "Biblioteca",
+    items: [
+      { id: "brands",  label: "Marcas", icon: Tags },
       { id: "outputs", label: "Saídas", icon: FolderOpen },
     ],
   },
   {
     label: "Sistema",
     items: [
-      { id: "providers", label: "IA / Providers", icon: Bot },
-      { id: "settings", label: "Configurações", icon: Settings },
-      { id: "logs", label: "Logs", icon: ScrollText },
+      { id: "providers", label: "IA / Providers",  icon: Bot },
+      { id: "settings",  label: "Configurações",   icon: Settings },
+      { id: "logs",      label: "Logs",             icon: ScrollText },
     ],
   },
 ];
@@ -40,6 +45,14 @@ export function Sidebar({ page, setPage }: { page: Page; setPage: (page: Page) =
         <span className="brand-icon"><BarChart3 size={16} color="#fff" /></span>
         ZeroInsight
       </div>
+
+      {/* Ação principal */}
+      <div className="sidebar-cta">
+        <button className="sidebar-cta-btn" onClick={() => setPage("stories")}>
+          <Sparkles size={14} /> Criar Story
+        </button>
+      </div>
+
       <nav>
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi}>
@@ -61,6 +74,7 @@ export function Sidebar({ page, setPage }: { page: Page; setPage: (page: Page) =
           </div>
         ))}
       </nav>
+
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">ZeroInsight · v0.2.0</div>
     </aside>
