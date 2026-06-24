@@ -85,7 +85,30 @@ def create_app() -> FastAPI:
     app.include_router(outputs.router, prefix="/api")
     app.include_router(brave.router, prefix="/api")
     app.include_router(prompts.router, prefix="/api")
+
+    # Serve the built React frontend — mounted LAST so all /api/* routes take priority.
+    # Active only when the frontend/dist (or bundled frontend_dist) directory exists.
+    _mount_frontend(app)
+
     return app
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Mount the compiled React build as a static SPA at '/'."""
+    import sys
+    from pathlib import Path as _Path
+    from fastapi.staticfiles import StaticFiles
+
+    if getattr(sys, "frozen", False):
+        # PyInstaller --onedir: frontend_dist is bundled next to the exe
+        dist = _Path(sys.executable).parent / "frontend_dist"
+    else:
+        # Development / CI: check for a pre-built Vite output
+        dist = _Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+    if dist.is_dir():
+        logger.info("Serving frontend from %s", dist)
+        app.mount("/", StaticFiles(directory=str(dist), html=True), name="frontend")
 
 
 app = create_app()
@@ -104,8 +127,10 @@ def run_server(open_browser: bool = False) -> None:
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+    # Pass the app object directly (not a string) — string-based import breaks
+    # in PyInstaller frozen mode where dynamic module discovery doesn't work.
     uvicorn.run(
-        "zero_insight.server.app:app",
+        app,
         host=srv.backend_host,
         port=srv.backend_port,
         reload=False,

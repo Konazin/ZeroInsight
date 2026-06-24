@@ -1,13 +1,23 @@
 ﻿from __future__ import annotations
 
 import os
+import sys
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def _resolve_project_root() -> Path:
+    """Return the app root directory, aware of PyInstaller frozen mode."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller --onedir: sys.executable is the .exe itself
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+PROJECT_ROOT = _resolve_project_root()
 ENV_PATH = PROJECT_ROOT / ".env"
 
 ENV_KEYS = (
@@ -158,7 +168,14 @@ class Settings:
         return self._base_output_path() / self.stories_dir
 
     def _base_output_path(self) -> Path:
-        return Path(self.output_dir).expanduser() if self.output_dir else PROJECT_ROOT
+        if self.output_dir:
+            return Path(self.output_dir).expanduser()
+        if getattr(sys, "frozen", False):
+            # Packaged app: write user data to ~/Documents/ZeroInsight
+            docs = Path.home() / "Documents" / "ZeroInsight"
+            docs.mkdir(parents=True, exist_ok=True)
+            return docs
+        return PROJECT_ROOT
 
     @property
     def cdp_url(self) -> str:

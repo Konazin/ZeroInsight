@@ -1,0 +1,49 @@
+{
+  "name": "zeroinsight",
+  "version": "0.2.0",
+  "description": "ZeroInsight — Gerador de Stories com IA",
+  "author": "RequisiteRPV LTDA",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.requisite.zeroinsight",
+    "productName": "ZeroInsight",
+    "copyright": "Copyright © 2026 RequisiteRPV LTDA",
+    "directories": {
+      "output": "../dist-electron",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowDirChange": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ZeroInsight",
+      "deleteAppDataOnUninstall": false
+    },
+    "extraResources": [
+      {
+        "from": "../dist/backend",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}
