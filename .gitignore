@@ -14,11 +14,16 @@ posts/
 stories/
 .zeroinsight_appdata/
 
-# Legado Node (se existir)
+# Node
 node_modules/
 frontend/node_modules/
+electron/node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
+
+# Build artifacts — instalador gerado vai para GitHub Releases, não no repo
+dist/
+dist-electron/
 
 *.png
 *.jpg
