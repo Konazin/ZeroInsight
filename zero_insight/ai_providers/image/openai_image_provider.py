@@ -26,7 +26,7 @@ class OpenAIImageProvider(ImageProvider):
         self.background = str(self.config.extra_params.get("background") or os.getenv("OPENAI_IMAGE_BACKGROUND", "opaque"))
         self.last_metadata: dict[str, Any] = {}
 
-    def _client(self):
+    def _client(self) -> Any:
         api_key = self.config.api_key_value or os.getenv(self.config.api_key_env or "OPENAI_API_KEY", "")
         if not api_key:
             raise ProviderError("OpenAI configurada, mas OPENAI_API_KEY nao foi encontrada.")
@@ -36,7 +36,6 @@ class OpenAIImageProvider(ImageProvider):
             raise ProviderError("Dependencia oficial 'openai' nao instalada. Rode pip install -r requirements.txt.") from exc
         # O SDK da OpenAI lê OPENAI_BASE_URL do ambiente mesmo sem passar base_url.
         # Se a variável estiver vazia no .env, ele monta URLs sem protocolo (httpcore.UnsupportedProtocol).
-        # Solução: sempre passar base_url explicitamente — custom se configurado, padrão oficial caso contrário.
         base_url = self.base_url or "https://api.openai.com/v1"
         return OpenAI(
             api_key=api_key,
@@ -44,6 +43,8 @@ class OpenAIImageProvider(ImageProvider):
             timeout=httpx.Timeout(None, connect=15.0),
             max_retries=0,
         )
+
+    # ── Interface pública ─────────────────────────────────────────────────────
 
     def generate_image(
         self,
@@ -54,49 +55,67 @@ class OpenAIImageProvider(ImageProvider):
         negative_prompt: str | None = None,
         logo_path: str | None = None,
     ) -> Path:
+        """Gera uma única imagem e salva em output_path."""
         final_prompt = prompt if not negative_prompt else f"{prompt}\n\nAvoid: {negative_prompt}"
         size = self._supported_size(width, height)
         client = self._client()
+        response = self._api_call(client, final_prompt, size, n=1, logo_path=logo_path)
+        return self._save_all(response, final_prompt, size, [output_path], logo_embedded=bool(logo_path and Path(logo_path).is_file()))[0]
 
+    def generate_images_batch(
+        self,
+        prompt: str,
+        width: int,
+        height: int,
+        output_dir: Path,
+        count: int,
+        prefix: str = "story",
+        logo_path: str | None = None,
+    ) -> list[Path]:
+        """Gera `count` imagens em uma única chamada à API e salva em output_dir.
+
+        Retorna a lista de paths na mesma ordem em que a API os enviou.
+        """
+        size = self._supported_size(width, height)
+        client = self._client()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_paths = [output_dir / f"{prefix}_{i:02d}_base.png" for i in range(1, count + 1)]
+        response = self._api_call(client, prompt, size, n=count, logo_path=logo_path)
+        return self._save_all(response, prompt, size, output_paths, logo_embedded=bool(logo_path and Path(logo_path).is_file()))
+
+    # ── Internos ──────────────────────────────────────────────────────────────
+
+    def _api_call(self, client: Any, prompt: str, size: str, n: int, logo_path: str | None) -> Any:
+        """Escolhe entre /images/generate e /images/edit dependendo da logo."""
         if logo_path and Path(logo_path).is_file():
-            return self._generate_with_logo(client, final_prompt, size, output_path, Path(logo_path))
+            return self._call_edit(client, prompt, size, n, Path(logo_path))
+        return self._call_generate(client, prompt, size, n)
 
-        return self._generate(client, final_prompt, size, output_path)
-
-    def _generate(self, client: Any, prompt: str, size: str, output_path: Path) -> Path:
+    def _call_generate(self, client: Any, prompt: str, size: str, n: int) -> Any:
         kwargs: dict[str, Any] = {
             "model": self.config.model,
             "prompt": prompt,
             "size": size,
             "quality": self.quality,
-            "n": 1,
+            "n": n,
         }
         if self.background:
             kwargs["background"] = self.background
         try:
-            response = client.images.generate(**kwargs)
+            return client.images.generate(**kwargs)
         except TypeError:
             kwargs.pop("background", None)
-            response = client.images.generate(**kwargs)
-        return self._save_response(response, prompt, size, output_path, logo_embedded=False)
+            return client.images.generate(**kwargs)
 
-    def _generate_with_logo(
-        self, client: Any, prompt: str, size: str, output_path: Path, logo_path: Path
-    ) -> Path:
-        """Usa o endpoint /images/edits com canvas pré-montado contendo a logo.
-
-        A OpenAI preserva áreas opacas (logo) e gera o restante (áreas transparentes),
-        integrando a logo ao design em vez de sobrepô-la com PIL depois.
-        """
+    def _call_edit(self, client: Any, prompt: str, size: str, n: int, logo_path: Path) -> Any:
+        """Canvas transparente com logo pré-posicionada — IA preserva a logo e gera o resto."""
         from PIL import Image as PILImage
 
         w, h = (map(int, size.split("x")) if "x" in size else (1024, 1536))
-
         canvas = PILImage.new("RGBA", (w, h), (0, 0, 0, 0))
         logo = PILImage.open(logo_path).convert("RGBA")
         logo.thumbnail((180, 100))
-        margin = 64
-        canvas.paste(logo, (margin, margin), logo)
+        canvas.paste(logo, (64, 64), logo)
 
         buf = io.BytesIO()
         canvas.save(buf, format="PNG")
@@ -108,31 +127,41 @@ class OpenAIImageProvider(ImageProvider):
             "prompt": prompt,
             "size": size,
             "quality": self.quality,
-            "n": 1,
+            "n": n,
         }
         if self.background:
             kwargs["background"] = self.background
         try:
-            response = client.images.edit(**kwargs)
+            return client.images.edit(**kwargs)
         except TypeError:
             kwargs.pop("background", None)
             buf.seek(0)
-            response = client.images.edit(**kwargs)
-        return self._save_response(response, prompt, size, output_path, logo_embedded=True)
+            return client.images.edit(**kwargs)
 
-    def _save_response(
-        self, response: Any, prompt: str, size: str, output_path: Path, *, logo_embedded: bool
-    ) -> Path:
-        data = response.data[0]
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        if getattr(data, "b64_json", None):
-            output_path.write_bytes(base64.b64decode(data.b64_json))
-        elif getattr(data, "url", None):
-            img = httpx.get(data.url, timeout=None)
-            img.raise_for_status()
-            output_path.write_bytes(img.content)
-        else:
-            raise ProviderError("Resposta da OpenAI Images sem base64 ou URL.")
+    def _save_all(
+        self,
+        response: Any,
+        prompt: str,
+        size: str,
+        output_paths: list[Path],
+        *,
+        logo_embedded: bool,
+    ) -> list[Path]:
+        """Salva cada item de response.data no path correspondente."""
+        saved: list[Path] = []
+        for data, out in zip(response.data, output_paths):
+            out.parent.mkdir(parents=True, exist_ok=True)
+            if getattr(data, "b64_json", None):
+                out.write_bytes(base64.b64decode(data.b64_json))
+            elif getattr(data, "url", None):
+                img = httpx.get(data.url, timeout=None)
+                img.raise_for_status()
+                out.write_bytes(img.content)
+            else:
+                raise ProviderError(f"Imagem sem base64 ou URL na resposta da OpenAI: {out.name}")
+            saved.append(out)
+
+        first = response.data[0] if response.data else None
         self.last_metadata = {
             "ai_image_provider": "openai",
             "ai_image_model": self.config.model,
@@ -140,12 +169,13 @@ class OpenAIImageProvider(ImageProvider):
             "ai_image_quality": self.quality,
             "image_format": self.image_format,
             "background": self.background,
-            "revised_prompt": getattr(data, "revised_prompt", None),
+            "revised_prompt": getattr(first, "revised_prompt", None) if first else None,
             "cost_estimate": None,
             "prompt_used": prompt,
             "logo_embedded": logo_embedded,
+            "images_count": len(saved),
         }
-        return output_path
+        return saved
 
     def _supported_size(self, width: int, height: int) -> str:
         requested = self.size or f"{width}x{height}"

@@ -113,17 +113,14 @@ class StoryRenderer:
         output_path: Path,
         logo_embedded: bool = False,
     ) -> Path:
-        """Salva imagem gerada pela IA adicionando apenas o contador de slide.
+        """Salva imagem gerada pela IA sem sobreposições de texto ou contadores.
 
-        Quando logo_embedded=True a logo já foi incluída pela IA via /images/edit —
-        não sobrepõe nada, apenas adiciona o número do slide no canto inferior direito.
-        Quando logo_embedded=False (geração simples sem logo), adiciona nome da marca
-        em texto se não houver logo, ou faz o overlay da logo normalmente.
+        Quando logo_embedded=True a logo já foi incluída pela IA via /images/edit.
+        Quando logo_embedded=False, adiciona nome da marca em texto se não houver logo,
+        ou faz o overlay da logo normalmente.
         """
         image = Image.open(base_image_path).convert("RGBA").resize((self.width, self.height))
         margin = 64
-        meta_font = _font(28)
-        draw = ImageDraw.Draw(image, "RGBA")
 
         if not logo_embedded:
             if self.logo_path and self.logo_path.strip():
@@ -134,6 +131,7 @@ class StoryRenderer:
                 except Exception:
                     pass
             else:
+                draw = ImageDraw.Draw(image, "RGBA")
                 brand_font = _font(28, bold=True)
                 draw.text(
                     (margin, margin + 8),
@@ -141,14 +139,6 @@ class StoryRenderer:
                     font=brand_font,
                     fill=(255, 255, 255, 200),
                 )
-
-        counter = f"{slide.order:02d}/{brief.slides:02d}"
-        draw.text(
-            (self.width - margin - 90, self.height - margin - 36),
-            counter,
-            font=meta_font,
-            fill=(255, 255, 255, 180),
-        )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         image.convert("RGB").save(output_path, format="PNG")

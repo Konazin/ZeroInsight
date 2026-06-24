@@ -171,51 +171,88 @@ async def run_story_pipeline(
                 from pathlib import Path as _Path
                 logo_path = lp if _Path(lp).is_file() else None
 
-        for slide in slides:
-            base_path = output_dir / f"story_{slide.order:02d}_base.png"
-            final_path = output_dir / f"story_{slide.order:02d}.png"
-            prompt_package = build_prompt_package(brief, slide, brand_profile, destination="story")
-            image_prompt_packages.append(prompt_package.to_dict())
-            if ai_image_provider:
-                # Composição completa: IA gera o story inteiro com texto embutido
-                if brief.custom_image_prompt:
-                    prompt = brief.custom_image_prompt
-                else:
-                    prompt = build_full_composition_prompt(brief, slide, brand_profile, logo_path=logo_path)
-                _log(on_log, "INFO", f"Gerando composição completa via {image_provider_name} (slide {slide.order})...")
-                explicit_provider = bool(brief.ai_image_provider)
-                try:
-                    ai_image_provider.generate_image(prompt, 1024, 1536, base_path, logo_path=logo_path)
-                    metadata = getattr(ai_image_provider, "last_metadata", None)
-                    if isinstance(metadata, dict) and metadata:
-                        ai_image_metadata.append({"slide_order": slide.order, **metadata})
-                except Exception as exc:
-                    if explicit_provider:
-                        raise RuntimeError(
-                            f"Provider '{image_provider_name}' falhou no slide {slide.order}: {exc}"
-                        ) from exc
-                    warning = (
-                        f"Provider de imagem '{image_provider_name}' falhou no slide "
-                        f"{slide.order}; usando geracao local sem API. Motivo: {exc}"
+        if ai_image_provider and brief.custom_image_prompt:
+            # ── Modo manual: uma única chamada, N imagens de volta ────────────
+            count = len(slides)
+            _log(on_log, "INFO", f"Modo manual: gerando {count} imagens em uma unica chamada via {image_provider_name}...")
+            try:
+                batch_fn = getattr(ai_image_provider, "generate_images_batch", None)
+                if batch_fn:
+                    base_paths_batch = batch_fn(
+                        brief.custom_image_prompt, 1024, 1536, output_dir,
+                        count, prefix="story", logo_path=logo_path,
                     )
-                    image_provider_warnings.append(warning)
-                    _log(on_log, "WARN", warning)
-                    fallback_provider = create_image_provider(_provider_config(settings, "image", "local"))
-                    fallback_provider.generate_image(build_image_prompt(brief, slide), 1024, 1536, base_path)
-                    # Fallback usa renderer completo pois gerou só o fundo
-                    base_paths.append(base_path)
-                    renderer.render(base_path, slide, brief, final_path)
-                    image_paths.append(final_path)
-                    continue
-                # Sucesso com IA: não aplica overlay de texto — a imagem já é a composição final
+                else:
+                    # Provider sem suporte a batch: faz chamadas individuais com o mesmo prompt
+                    base_paths_batch = []
+                    for slide in slides:
+                        bp = output_dir / f"story_{slide.order:02d}_base.png"
+                        ai_image_provider.generate_image(brief.custom_image_prompt, 1024, 1536, bp, logo_path=logo_path)
+                        base_paths_batch.append(bp)
                 _meta = getattr(ai_image_provider, "last_metadata", {})
+                if isinstance(_meta, dict) and _meta:
+                    ai_image_metadata.append(_meta)
                 logo_was_embedded = bool(_meta.get("logo_embedded", False))
+            except Exception as exc:
+                if bool(brief.ai_image_provider):
+                    raise RuntimeError(f"Provider '{image_provider_name}' falhou na geracao em lote: {exc}") from exc
+                _log(on_log, "WARN", f"Batch falhou; usando mock: {exc}")
+                base_paths_batch = []
+                for slide in slides:
+                    bp = output_dir / f"story_{slide.order:02d}_base.png"
+                    mock_provider.generate_base_image(brief, slide, bp)
+                    base_paths_batch.append(bp)
+                logo_was_embedded = False
+
+            for slide, base_path in zip(slides, base_paths_batch):
+                final_path = output_dir / f"story_{slide.order:02d}.png"
+                prompt_package = build_prompt_package(brief, slide, brand_profile, destination="story")
+                image_prompt_packages.append(prompt_package.to_dict())
                 renderer.render_ai_output(base_path, slide, brief, final_path, logo_embedded=logo_was_embedded)
-            else:
-                mock_provider.generate_base_image(brief, slide, base_path)
-                renderer.render(base_path, slide, brief, final_path)
-            base_paths.append(base_path)
-            image_paths.append(final_path)
+                base_paths.append(base_path)
+                image_paths.append(final_path)
+
+        else:
+            # ── Modo assistido: um prompt por slide ───────────────────────────
+            for slide in slides:
+                base_path = output_dir / f"story_{slide.order:02d}_base.png"
+                final_path = output_dir / f"story_{slide.order:02d}.png"
+                prompt_package = build_prompt_package(brief, slide, brand_profile, destination="story")
+                image_prompt_packages.append(prompt_package.to_dict())
+                if ai_image_provider:
+                    prompt = build_full_composition_prompt(brief, slide, brand_profile, logo_path=logo_path)
+                    _log(on_log, "INFO", f"Gerando composição completa via {image_provider_name} (slide {slide.order})...")
+                    explicit_provider = bool(brief.ai_image_provider)
+                    try:
+                        ai_image_provider.generate_image(prompt, 1024, 1536, base_path, logo_path=logo_path)
+                        metadata = getattr(ai_image_provider, "last_metadata", None)
+                        if isinstance(metadata, dict) and metadata:
+                            ai_image_metadata.append({"slide_order": slide.order, **metadata})
+                    except Exception as exc:
+                        if explicit_provider:
+                            raise RuntimeError(
+                                f"Provider '{image_provider_name}' falhou no slide {slide.order}: {exc}"
+                            ) from exc
+                        warning = (
+                            f"Provider de imagem '{image_provider_name}' falhou no slide "
+                            f"{slide.order}; usando geracao local sem API. Motivo: {exc}"
+                        )
+                        image_provider_warnings.append(warning)
+                        _log(on_log, "WARN", warning)
+                        fallback_provider = create_image_provider(_provider_config(settings, "image", "local"))
+                        fallback_provider.generate_image(build_image_prompt(brief, slide), 1024, 1536, base_path)
+                        base_paths.append(base_path)
+                        renderer.render(base_path, slide, brief, final_path)
+                        image_paths.append(final_path)
+                        continue
+                    _meta = getattr(ai_image_provider, "last_metadata", {})
+                    logo_was_embedded = bool(_meta.get("logo_embedded", False))
+                    renderer.render_ai_output(base_path, slide, brief, final_path, logo_embedded=logo_was_embedded)
+                else:
+                    mock_provider.generate_base_image(brief, slide, base_path)
+                    renderer.render(base_path, slide, brief, final_path)
+                base_paths.append(base_path)
+                image_paths.append(final_path)
 
         validation = validate_story_package(
             slides,

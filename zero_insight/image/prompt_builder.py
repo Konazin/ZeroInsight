@@ -121,8 +121,6 @@ In the lower third of the panel there is a prominent call-to-action button with 
 "{slide.cta}"
 
 {brand_line}\
-The slide counter "{slide.order:02d}/{brief.slides:02d}" appears in small light text at the bottom-right corner.
-
 DESIGN RULES:
 - Clean typographic hierarchy: large headline > readable body > bold CTA button.
 - All text is fully legible — sufficient size, high contrast, clean sans-serif font.
