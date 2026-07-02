@@ -96,8 +96,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # Exclude heavy packages that are never used
-    excludes=["tkinter", "matplotlib", "scipy", "PyQt5", "PyQt6", "wx", "notebook"],
+    # Exclude heavy packages that are never used by the FastAPI server
+    excludes=["tkinter", "matplotlib", "scipy", "PyQt5", "PyQt6", "PySide6", "wx", "notebook"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

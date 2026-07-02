@@ -1,3 +1,21 @@
+## Release — ZeroInsight v2.0.1
+
+**Versão do instalador:** `2.0.1`
+**Arquivo:** `ZeroInsight Setup 2.0.1.exe`
+**Plataforma:** Windows 10/11 x64
+
+---
+
+### Correções (v2.0.1)
+
+- **`start.bat` reescrito**: cria o `.venv` automaticamente, instala dependências Python antes de iniciar — elimina o erro `ModuleNotFoundError: No module named 'fastapi'` ao rodar da fonte
+- **Aviso de Node.js ausente**: exibe instruções com `winget install OpenJS.NodeJS.LTS` quando `npm` não é encontrado
+- **`build-app.ps1` com validações**: verifica pré-requisitos (Python, Node.js), instala `requirements.txt` antes do PyInstaller, valida que `backend.exe` foi gerado e que o instalador `.exe` foi criado — impede que um build quebrado chegue ao usuário
+- **`PySide6` excluído do bundle PyInstaller**: estava listado em `requirements.txt` mas não é usado pelo servidor FastAPI; excluir reduz o tamanho do bundle e elimina conflitos de Qt em tempo de build
+- **Versão corrigida**: `package.json` estava em `0.2.0`; corrigido para `2.0.1` para que o instalador gerado pelo `electron-builder` tenha o nome correto
+
+---
+
 ## Release — ZeroInsight v2.0
 
 **Versão do instalador:** `2.0.0`

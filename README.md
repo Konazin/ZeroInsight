@@ -36,13 +36,24 @@ O ZeroInsight é uma aplicação local (backend Python + frontend React) que aut
 
 ## Início rápido
 
+### Pré-requisitos (Windows)
+
+Instale com o **winget** (Prompt de Comando ou PowerShell):
+
+```bat
+winget install Python.Python.3.12
+winget install OpenJS.NodeJS.LTS
+```
+
+Reinicie o terminal após instalar para que `python` e `npm` fiquem no PATH.
+
 ### Windows (recomendado)
 
 ```bat
 start.bat
 ```
 
-O script cria o `.venv`, instala dependências, instala o frontend e inicia backend + frontend automaticamente.
+O script cria o `.venv` automaticamente, instala todas as dependências Python, verifica o Node.js e inicia backend + frontend.
 
 ### Manual
 
