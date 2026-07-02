@@ -1179,6 +1179,56 @@ nav { padding: 12px 10px 8px; }
   white-space: nowrap;
 }
 
+/* ── Dashboard setup banner (aviso guiado) ───────────────────────────── */
+.dash-setup-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(28,24,48,0.9) 70%);
+  border: 1px solid rgba(245,158,11,0.32);
+  box-shadow: none;
+  color: var(--text-muted);
+  height: auto;
+  white-space: normal;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.dash-setup-banner:hover:not(:disabled) {
+  border-color: rgba(245,158,11,0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245,158,11,0.12);
+  opacity: 1;
+}
+.dash-setup-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245,158,11,0.16);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: var(--warning);
+}
+.dash-setup-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.dash-setup-text strong { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.dash-setup-text span { font-size: 12px; color: var(--text-subtle); }
+.dash-setup-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning);
+  white-space: nowrap;
+}
+
 /* ── Dashboard status strip ──────────────────────────────────────────── */
 .dash-status-strip {
   display: flex;
@@ -1197,6 +1247,23 @@ nav { padding: 12px 10px 8px; }
   gap: 6px;
   font-size: 12px;
   color: var(--text-muted);
+}
+button.dash-status-item-action {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--warning);
+  font-weight: 600;
+  transition: background 0.12s;
+}
+button.dash-status-item-action:hover:not(:disabled) {
+  background: rgba(245,158,11,0.12);
+  transform: none;
+  box-shadow: none;
+  opacity: 1;
 }
 .dash-status-divider {
   width: 1px;

@@ -1,28 +1,44 @@
 import type { Health, ProviderState } from "../../types";
 import { ProviderBadge } from "../common/ProviderBadge";
 
-function StatusIndicator({ online, label, sublabel }: { online: boolean | null; label: string; sublabel?: string }) {
-  const dotClass = online === null ? "neutral" : online ? "online" : "offline";
+function StatusIndicator({
+  dot,
+  label,
+  sublabel,
+  title,
+}: {
+  dot: "online" | "offline" | "warning" | "neutral";
+  label: string;
+  sublabel?: string;
+  title?: string;
+}) {
   return (
-    <div className="topbar-status">
-      <span className={`status-dot ${dotClass}`} />
-      <span style={{ color: "#f9fafb" }}>{label}</span>
-      {sublabel && <span style={{ color: "#64748b", fontSize: 12 }}>{sublabel}</span>}
+    <div className="topbar-status" title={title}>
+      <span className={`status-dot ${dot}`} />
+      <span style={{ color: "var(--text-primary)" }}>{label}</span>
+      {sublabel && <span style={{ color: "var(--text-subtle)", fontSize: 12 }}>{sublabel}</span>}
     </div>
   );
 }
 
 export function Topbar({ health, providers, brave }: { health: Health | null; providers: ProviderState | null; brave: string }) {
+  const backendOnline = Boolean(health);
   const braveOnline = brave === "CDP ok";
-  const braveOffline = brave === "CDP offline" || brave === "backend offline";
 
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <StatusIndicator online={health ? true : false} label={health ? "Backend online" : "Backend offline"} />
         <StatusIndicator
-          online={braveOffline ? false : braveOnline ? true : null}
-          label={brave}
+          dot={backendOnline ? "online" : "offline"}
+          label={backendOnline ? "Backend online" : "Backend offline"}
+          title={backendOnline ? "Servidor local respondendo normalmente" : "O servidor local não está respondendo"}
+        />
+        {/* Integração opcional — só destacamos quando conectada; caso contrário fica discreta */}
+        <StatusIndicator
+          dot={braveOnline ? "online" : "neutral"}
+          label="Brave"
+          sublabel={braveOnline ? "conectado" : "opcional"}
+          title="Integração opcional com o Brave (métricas Dino via CDP). Não é necessária para gerar stories."
         />
       </div>
       <div className="topbar-actions">

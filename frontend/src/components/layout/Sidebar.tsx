@@ -2,6 +2,7 @@ import { BarChart3, Bot, FileText, FolderOpen, Home, Image, ScrollText, Settings
 import type { ComponentType } from "react";
 import type { Page } from "../../App";
 import { cn } from "../../lib/utils";
+import { APP_VERSION } from "../../lib/version";
 
 type NavGroup = {
   label?: string;
@@ -76,7 +77,7 @@ export function Sidebar({ page, setPage }: { page: Page; setPage: (page: Page) =
       </nav>
 
       <div className="sidebar-spacer" />
-      <div className="sidebar-footer">ZeroInsight · v0.2.0</div>
+      <div className="sidebar-footer">ZeroInsight · v{APP_VERSION}</div>
     </aside>
   );
 }

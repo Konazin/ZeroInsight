@@ -394,6 +394,7 @@ function Step1Briefing(props: {
             <input
               value={props.topic}
               onChange={(e) => props.setTopic(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && canNext) props.onNext(); }}
               placeholder="Ex: RPV Federal"
               autoFocus
             />

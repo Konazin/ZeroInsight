@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, FolderOpen, Image, Tags } from "lucide-react";
+import { AlertTriangle, ArrowRight, FileText, FolderOpen, Image, Settings, Tags } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Page } from "../App";
 import type { Health, ProviderState } from "../types";
@@ -9,6 +9,20 @@ export function Dashboard({ health, providers, onNavigate }: { health: Health | 
 
   return (
     <>
+      {/* Aviso guiado — só aparece quando algo precisa de atenção */}
+      {!openaiOk && (
+        <button className="dash-setup-banner" onClick={() => onNavigate("settings")}>
+          <span className="dash-setup-icon"><AlertTriangle size={16} /></span>
+          <span className="dash-setup-text">
+            <strong>Configure sua chave OpenAI para gerar imagens reais.</strong>
+            <span>Sem a chave, apenas o modo Mock (gradiente local) fica disponível.</span>
+          </span>
+          <span className="dash-setup-cta">
+            <Settings size={14} /> Configurar <ArrowRight size={14} />
+          </span>
+        </button>
+      )}
+
       {/* Hero — ação principal */}
       <div className="dash-hero">
         <div className="dash-hero-body">
@@ -34,10 +48,18 @@ export function Dashboard({ health, providers, onNavigate }: { health: Health | 
           <span>Backend {backendOnline ? "online" : "offline"}</span>
         </div>
         <div className="dash-status-divider" />
-        <div className="dash-status-item">
-          <span className={`status-dot ${openaiOk ? "online" : "warning"}`} />
-          <span>OpenAI {openaiOk ? "configurada" : "não configurada"}</span>
-        </div>
+        {openaiOk ? (
+          <div className="dash-status-item">
+            <span className="status-dot online" />
+            <span>OpenAI configurada</span>
+          </div>
+        ) : (
+          <button className="dash-status-item dash-status-item-action" onClick={() => onNavigate("settings")} title="Abrir configurações">
+            <span className="status-dot warning" />
+            <span>OpenAI não configurada</span>
+            <ArrowRight size={12} />
+          </button>
+        )}
         {openaiOk && providers?.openai && (
           <div className="dash-status-models">
             {providers.openai.text_model  && <span className="dash-model-pill">📝 {providers.openai.text_model}</span>}
