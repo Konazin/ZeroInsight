@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "ZeroInsight",
+    "slug": "zeroinsight-mobile",
+    "version": "2.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "zeroinsight",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0B1A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.requisite.zeroinsight"
+    },
+    "android": {
+      "package": "com.requisite.zeroinsight",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0B1A"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

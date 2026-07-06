@@ -21,6 +21,11 @@ electron/node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
 
+# Mobile (Expo)
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+
 # Build artifacts — instalador gerado vai para GitHub Releases, não no repo
 dist/
 dist-electron/
