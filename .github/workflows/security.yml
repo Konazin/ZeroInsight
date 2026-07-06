@@ -1,0 +1,60 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-security:
+    name: Python — Bandit + pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit pip-audit
+
+      - name: Bandit (análise estática de segurança)
+        # B104 (bind all interfaces) e B603/B607 (subprocess) são revisados
+        # manualmente; falha o build apenas em severidade alta.
+        run: bandit -r zero_insight -ll -x zero_insight/**/tests
+
+      - name: pip-audit (vulnerabilidades conhecidas em dependências)
+        run: pip-audit -r requirements.txt --strict || true
+
+  node-security:
+    name: Node — npm audit (frontend + mobile)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir: [frontend, mobile]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm audit (${{ matrix.dir }})
+        working-directory: ${{ matrix.dir }}
+        # Não falha o build por vulnerabilidades transitivas de dev; serve como
+        # relatório. Ajuste para `--audit-level=high` se quiser bloquear.
+        run: |
+          if [ -f package.json ]; then
+            npm install --package-lock-only --ignore-scripts
+            npm audit --audit-level=high || true
+          else
+            echo "Sem package.json em ${{ matrix.dir }}, pulando."
+          fi

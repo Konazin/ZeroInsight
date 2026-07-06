@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from zero_insight.config import Settings
+from zero_insight.server.security import GENERIC_ERROR_DETAIL
 from zero_insight.services import SettingsService
 
 router = APIRouter(tags=["settings"])
@@ -41,7 +42,7 @@ def get_settings() -> dict[str, Any]:
         return _public_settings(settings)
     except Exception as exc:
         logger.exception("Falha ao carregar configurações")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 
 
 @router.post("/settings")
@@ -61,5 +62,5 @@ def update_settings(values: dict[str, Any]) -> dict[str, Any]:
         raise
     except Exception as exc:
         logger.exception("Falha ao salvar configurações")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 

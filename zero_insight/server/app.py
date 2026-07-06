@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 import time
 import webbrowser
@@ -11,8 +12,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from zero_insight.server.routes import brands, brave, generation, health, outputs, providers, prompts, settings
+from zero_insight.server.security import GENERIC_ERROR_DETAIL, security_headers_middleware
 
 logger = logging.getLogger(__name__)
+
+# Em produção (app empacotado), desabilita a documentação interativa da API
+# e o schema OpenAPI para reduzir a superfície de informação exposta.
+_IS_FROZEN = getattr(sys, "frozen", False)
+
+# Limite de corpo de requisição — protege contra payloads gigantes.
+_MAX_REQUEST_BYTES = 20 * 1024 * 1024  # 20 MB
 
 _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5173",
@@ -57,25 +66,46 @@ async def _lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="ZeroInsight API",
-        version="0.2.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        version="2.0.1",
+        # Documentação interativa só em desenvolvimento.
+        docs_url=None if _IS_FROZEN else "/api/docs",
+        redoc_url=None if _IS_FROZEN else "/api/redoc",
+        openapi_url=None if _IS_FROZEN else "/api/openapi.json",
         lifespan=_lifespan,
     )
+
+    # Headers de segurança em todas as respostas.
+    app.middleware("http")(security_headers_middleware)
+
+    # Rejeita corpos de requisição maiores que o limite (via Content-Length).
+    @app.middleware("http")
+    async def _limit_body_size(request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > _MAX_REQUEST_BYTES:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"ok": False, "detail": "Requisição grande demais."},
+                    )
+            except ValueError:
+                return JSONResponse(status_code=400, content={"ok": False, "detail": "Content-Length inválido."})
+        return await call_next(request)
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_build_cors_origins(),
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Loga o erro completo no servidor, mas nunca expõe detalhes internos
+        # (stack trace, caminhos, mensagens de exceção) ao cliente.
         logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
-        return JSONResponse(status_code=500, content={"ok": False, "detail": str(exc)})
+        return JSONResponse(status_code=500, content={"ok": False, "detail": GENERIC_ERROR_DETAIL})
 
     app.include_router(health.router, prefix="/api")
     app.include_router(settings.router, prefix="/api")

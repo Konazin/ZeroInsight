@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from zero_insight.brand.cache import brand_dir, load_brand_profile, save_brand_profile
 from zero_insight.config import Settings
 from zero_insight.server.schemas import BrandImportRequest
+from zero_insight.server.security import GENERIC_ERROR_DETAIL, validate_identifier
 from zero_insight.services import BrandService
 
 router = APIRouter(tags=["brands"])
@@ -39,7 +40,7 @@ def import_brand(request: BrandImportRequest) -> dict:
         raise
     except Exception as exc:
         logger.exception("Falha ao importar documento de marca: %s", path)
-        raise HTTPException(status_code=500, detail=f"Falha ao importar marca: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Falha ao importar a marca. Verifique o documento e os logs.") from exc
 
 
 @router.get("/brands")
@@ -58,15 +59,17 @@ def list_brands() -> list[dict]:
 
 @router.get("/brands/{brand_id}")
 def get_brand(brand_id: str) -> dict:
+    brand_id = validate_identifier(brand_id, "brand_id")
     try:
         profile = load_brand_profile(brand_id)
     except Exception as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail="Marca não encontrada.") from exc
     return profile.to_dict()
 
 
 @router.put("/brands/{brand_id}")
 def update_brand(brand_id: str, data: dict) -> dict:
+    brand_id = validate_identifier(brand_id, "brand_id")
     try:
         profile = load_brand_profile(brand_id)
         merged = profile.to_dict()
@@ -75,12 +78,16 @@ def update_brand(brand_id: str, data: dict) -> dict:
 
         saved = save_brand_profile(BrandProfile.from_dict(merged), brand_dir(brand_id))
         return {"ok": True, "path": str(saved)}
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("Falha ao atualizar marca: %s", brand_id)
+        raise HTTPException(status_code=400, detail="Não foi possível atualizar a marca.") from exc
 
 
 @router.post("/brands/{brand_id}/logo")
 async def upload_brand_logo(brand_id: str, file: UploadFile) -> dict:
+    brand_id = validate_identifier(brand_id, "brand_id")
     _ALLOWED = {".png", ".jpg", ".jpeg", ".webp"}
     suffix = Path(file.filename or "logo.png").suffix.lower()
     if suffix not in _ALLOWED:
@@ -98,13 +105,16 @@ async def upload_brand_logo(brand_id: str, file: UploadFile) -> dict:
         from zero_insight.brand import BrandProfile
         save_brand_profile(BrandProfile.from_dict(merged), directory)
         return {"ok": True, "logo_path": str(logo_path)}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Falha ao salvar logo: %s", brand_id)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 
 
 @router.get("/brands/{brand_id}/logo")
 def get_brand_logo(brand_id: str) -> FileResponse:
+    brand_id = validate_identifier(brand_id, "brand_id")
     try:
         profile = load_brand_profile(brand_id)
         logo_path = (profile.assets or {}).get("logo_path", "")
@@ -114,4 +124,5 @@ def get_brand_logo(brand_id: str) -> FileResponse:
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        logger.warning("Falha ao servir logo de %s: %s", brand_id, exc)
+        raise HTTPException(status_code=404, detail="Logo não encontrada.") from exc

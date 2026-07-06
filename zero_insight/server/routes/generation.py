@@ -9,6 +9,7 @@ from zero_insight.config import Settings
 from zero_insight.content import StoryBrief, StorySlide
 from zero_insight.image.prompt_builder import build_full_composition_prompt, build_prompt_package
 from zero_insight.server.schemas import GeneratePostRequest, GenerateStoryRequest, ImagePreviewRequest
+from zero_insight.server.security import GENERIC_ERROR_DETAIL, validate_identifier
 from zero_insight.services import PipelineService
 
 router = APIRouter(tags=["generation"])
@@ -22,7 +23,7 @@ def generate_post(request: GeneratePostRequest) -> dict:
         return {"ok": ok, "result": result}
     except Exception as exc:
         logger.exception("Falha na geração de post")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 
 
 @router.post("/generate/story")
@@ -55,9 +56,11 @@ def generate_story(request: GenerateStoryRequest) -> dict:
         )
         ok, manifest = PipelineService(settings).run_stories(brief, from_dino=request.from_dino)
         return {"ok": ok, "manifest": manifest}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Falha na geração de story")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 
 
 @router.post("/generate/image-preview")
@@ -65,10 +68,11 @@ def image_preview(request: ImagePreviewRequest) -> dict:
     try:
         brand_profile = None
         if request.brand_profile_id:
+            brand_id = validate_identifier(request.brand_profile_id, "brand_profile_id")
             try:
-                brand_profile = load_brand_profile(request.brand_profile_id)
+                brand_profile = load_brand_profile(brand_id)
             except Exception:
-                logger.warning("BrandProfile '%s' não encontrado para prévia.", request.brand_profile_id)
+                logger.warning("BrandProfile '%s' não encontrado para prévia.", brand_id)
         brief = StoryBrief(
             topic=request.topic,
             objective=request.objective,
@@ -94,7 +98,9 @@ def image_preview(request: ImagePreviewRequest) -> dict:
         result = package.to_dict()
         result["prompt"] = full_prompt  # substitui o prompt de fundo pelo de composição completa
         return result
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Falha na prévia de imagem")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
 
