@@ -154,7 +154,9 @@ class OpenAIImageProvider(ImageProvider):
             if getattr(data, "b64_json", None):
                 out.write_bytes(base64.b64decode(data.b64_json))
             elif getattr(data, "url", None):
-                img = httpx.get(data.url, timeout=None)
+                # Timeout explícito para não travar indefinidamente ao baixar
+                # a imagem (connect/read). Imagens costumam vir em poucos segundos.
+                img = httpx.get(data.url, timeout=httpx.Timeout(60.0, connect=10.0))
                 img.raise_for_status()
                 out.write_bytes(img.content)
             else:

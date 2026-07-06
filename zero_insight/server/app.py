@@ -66,7 +66,7 @@ async def _lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="ZeroInsight API",
-        version="2.0.1",
+        version="2.0.2",
         # Documentação interativa só em desenvolvimento.
         docs_url=None if _IS_FROZEN else "/api/docs",
         redoc_url=None if _IS_FROZEN else "/api/redoc",

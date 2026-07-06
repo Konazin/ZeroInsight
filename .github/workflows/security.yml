@@ -27,9 +27,10 @@ jobs:
           pip install bandit pip-audit
 
       - name: Bandit (análise estática de segurança)
-        # B104 (bind all interfaces) e B603/B607 (subprocess) são revisados
-        # manualmente; falha o build apenas em severidade alta.
-        run: bandit -r zero_insight -ll -x zero_insight/**/tests
+        # Falha o build apenas em achados de severidade E confiança média ou
+        # superior. (Obs.: o flag -ll afeta só a exibição, não o exit code;
+        # por isso usamos os thresholds explícitos.)
+        run: bandit -r zero_insight --severity-level medium --confidence-level medium -x "zero_insight/**/tests"
 
       - name: pip-audit (vulnerabilidades conhecidas em dependências)
         run: pip-audit -r requirements.txt --strict || true

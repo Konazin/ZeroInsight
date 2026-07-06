@@ -1,3 +1,30 @@
+## Release — ZeroInsight v2.0.2
+
+**Versão do instalador:** `2.0.2`
+**Plataforma:** Windows 10/11 x64 · App mobile: Android/iOS (Expo)
+
+---
+
+### Segurança e robustez (v2.0.2)
+
+- **Correção crítica — leitura arbitrária de arquivos:** a rota `/api/outputs/file`
+  aceitava qualquer caminho, permitindo ler `.env` (chaves de API) e arquivos do
+  sistema. Agora todo acesso é contido às pastas de saída (`stories/`, `posts/`,
+  `screenshots/`); caminhos externos retornam 403.
+- Respostas de erro 500 deixaram de vazar detalhes internos (stack traces).
+- Validação de entrada (Pydantic com limites), headers de segurança HTTP, limite
+  de tamanho de requisição e documentação da API desabilitada no app empacotado.
+- `httpx.get` de download de imagem agora tem timeout explícito (não trava mais).
+- Novo `SECURITY.md` e workflow de CI de segurança (bandit + pip-audit + npm audit).
+
+### Novo — App mobile (React Native / Expo)
+
+- App standalone que gera Stories com IA direto do celular, chamando a OpenAI.
+- Chave de API guardada no cofre seguro do dispositivo (Keychain/Keystore).
+- Veja [`mobile/README.md`](mobile/README.md).
+
+---
+
 ## Release — ZeroInsight v2.0.1
 
 **Versão do instalador:** `2.0.1`

@@ -1,6 +1,6 @@
 {
   "name": "zeroinsight-mobile",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "ZeroInsight Mobile — gerador de Stories com IA (Expo / React Native)",
   "main": "index.ts",
