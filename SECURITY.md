@@ -47,5 +47,5 @@ padrão porque o modelo é single-user local.
 
 ## Reportar uma vulnerabilidade
 
-Envie um e-mail para **comercial@requisite.com.br** com passos de reprodução.
+Envie um e-mail para **m4caun4@gmail.com** com passos de reprodução.
 Não abra issues públicas para falhas de segurança.
