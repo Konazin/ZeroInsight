@@ -1,7 +1,8 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { FolderOpen, Trash2 } from "lucide-react-native";
+import { FolderOpen, Trash2, X } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, PageTitle, Screen } from "../components/ui";
 import { deleteCampaign, listCampaigns, type StoryResult } from "../lib/storyPipeline";
 import { colors, font, radius, spacing } from "../theme";
@@ -9,6 +10,7 @@ import { colors, font, radius, spacing } from "../theme";
 export function OutputsScreen() {
   const [campaigns, setCampaigns] = useState<StoryResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -64,13 +66,43 @@ export function OutputsScreen() {
               </Pressable>
             </View>
             <View style={styles.thumbRow}>
-              {item.slides.map((s) => (
-                <Image key={s.imageUri} source={{ uri: s.imageUri }} style={styles.thumb} />
+              {item.slides.map((s, index) => (
+                <Pressable
+                  key={s.imageUri}
+                  onPress={() => setPreviewUri(s.imageUri)}
+                  accessibilityRole="imagebutton"
+                  accessibilityLabel={`Ampliar slide ${index + 1}`}
+                >
+                  <Image source={{ uri: s.imageUri }} style={styles.thumb} />
+                </Pressable>
               ))}
             </View>
           </Card>
         ))
       )}
+
+      <Modal
+        visible={Boolean(previewUri)}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => setPreviewUri(null)}
+      >
+        <SafeAreaView style={styles.previewModal}>
+          <View style={styles.previewHeader}>
+            <Text style={styles.previewTitle}>Visualização</Text>
+            <Pressable
+              onPress={() => setPreviewUri(null)}
+              style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar visualização"
+            >
+              <X size={22} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+          {previewUri ? <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" /> : null}
+          <Text style={styles.previewHint}>Toque no × para voltar às saídas.</Text>
+        </SafeAreaView>
+      </Modal>
     </Screen>
   );
 }
@@ -103,7 +135,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(239,68,68,0.10)",
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   thumbRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   thumb: {
@@ -114,4 +148,24 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.bgElevated,
   },
+  previewModal: { flex: 1, backgroundColor: colors.bgBase, padding: spacing.lg },
+  previewHeader: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  previewTitle: { color: colors.textPrimary, fontSize: font.h3, fontWeight: "700" },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewImage: { flex: 1, width: "100%", borderRadius: radius.lg },
+  previewHint: { color: colors.textSubtle, fontSize: font.small, textAlign: "center", paddingVertical: spacing.md },
 });

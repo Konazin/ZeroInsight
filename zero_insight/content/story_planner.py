@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from zero_insight.content.story_script import StoryBrief, StorySlide
 from zero_insight.brand.brand_profile import BrandProfile
 from zero_insight.brand.cache import load_brand_profile
+from zero_insight.ai_providers.base import ProviderError, TextProvider
 
 
 def _clean_short(value: str, fallback: str, max_chars: int) -> str:
@@ -46,6 +48,109 @@ def _load_profile(brief: StoryBrief) -> BrandProfile | None:
         return load_brand_profile(target)
     except Exception:
         return None
+
+
+STORY_SCRIPT_SCHEMA: dict[str, Any] = {
+    "title": "ZeroInsightStoryScript",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "slides": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "order": {"type": "integer"},
+                    "hook": {"type": "string"},
+                    "body": {"type": "string"},
+                    "cta": {"type": "string"},
+                    "visual_idea": {"type": "string"},
+                    "image_prompt": {"type": "string"},
+                    "compliance_notes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": [
+                    "order",
+                    "hook",
+                    "body",
+                    "cta",
+                    "visual_idea",
+                    "image_prompt",
+                    "compliance_notes",
+                ],
+            },
+        }
+    },
+    "required": ["slides"],
+}
+
+
+def plan_story_script_with_provider(
+    brief: StoryBrief,
+    provider: TextProvider,
+) -> list[StorySlide]:
+    """Generate and validate a story script using the selected text provider."""
+    profile = _load_profile(brief)
+    prompt = f"""Gere um roteiro de Instagram Stories em português do Brasil.
+Use exatamente {brief.slides} slides, numerados de 1 a {brief.slides}.
+Mantenha hook, body e CTA curtos, claros e adequados a marketing jurídico.
+Não faça promessas garantidas, não invente métricas e respeite as regras da marca.
+
+Briefing:
+{json.dumps(brief.to_dict(), ensure_ascii=False, indent=2)}
+
+BrandProfile:
+{json.dumps(profile.to_dict() if profile else {}, ensure_ascii=False, indent=2)}
+
+Identificador da tarefa: story_script
+"""
+    data = provider.generate_json(
+        prompt,
+        schema_hint=STORY_SCRIPT_SCHEMA,
+        system_prompt=(
+            "Você cria roteiros institucionais verificáveis. "
+            "Responda somente JSON válido no schema solicitado."
+        ),
+    )
+    raw_slides = data.get("slides")
+    if not isinstance(raw_slides, list) or len(raw_slides) != brief.slides:
+        raise ProviderError(
+            f"Provider retornou {len(raw_slides) if isinstance(raw_slides, list) else 0} "
+            f"slides; esperado: {brief.slides}."
+        )
+
+    slides: list[StorySlide] = []
+    for index, raw in enumerate(raw_slides, start=1):
+        if not isinstance(raw, dict):
+            raise ProviderError(f"Slide {index} retornado em formato inválido.")
+        hook = str(raw.get("hook") or "").strip()
+        body = str(raw.get("body") or "").strip()
+        cta = str(raw.get("cta") or brief.cta or "").strip()
+        if not hook or not body or not cta:
+            raise ProviderError(f"Slide {index} retornou campos obrigatórios vazios.")
+        visual_idea = str(raw.get("visual_idea") or "composição institucional limpa").strip()
+        image_prompt = str(raw.get("image_prompt") or visual_idea).strip()
+        notes = raw.get("compliance_notes")
+        compliance_notes = (
+            [str(note).strip() for note in notes if str(note).strip()]
+            if isinstance(notes, list)
+            else []
+        )
+        slides.append(
+            StorySlide(
+                order=index,
+                hook=hook,
+                body=body,
+                cta=cta,
+                visual_idea=visual_idea,
+                image_prompt=image_prompt,
+                compliance_notes=compliance_notes,
+            )
+        )
+    return slides
 
 
 def plan_story_script(brief: StoryBrief) -> list[StorySlide]:

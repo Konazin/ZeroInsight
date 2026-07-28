@@ -68,26 +68,41 @@ export async function runStoryPipeline(
 
   const campaign = `${Date.now()}_${slugify(brief.topic)}`;
   const directory = `${STORIES_DIR}${campaign}/`;
-  await ensureDir(directory);
+  const stagingDirectory = `${STORIES_DIR}.${campaign}.in_progress/`;
+  await ensureDir(stagingDirectory);
 
   const slides: GeneratedSlide[] = [];
-  for (let i = 0; i < script.length; i++) {
-    const slide = script[i];
-    onProgress?.({ step: `Gerando imagem ${i + 1}/${script.length}…`, current: i + 2, total });
-    const b64 = await generateImage(config.apiKey, config.imageModel, buildImagePrompt(brief, slide));
-    const imageUri = `${directory}story_${String(i + 1).padStart(2, "0")}.png`;
-    await FileSystem.writeAsStringAsync(imageUri, b64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    slides.push({ ...slide, imageUri });
-  }
+  try {
+    for (let i = 0; i < script.length; i++) {
+      const slide = script[i];
+      onProgress?.({ step: `Gerando imagem ${i + 1}/${script.length}…`, current: i + 2, total });
+      const b64 = await generateImage(config.apiKey, config.imageModel, buildImagePrompt(brief, slide));
+      const imageUri = `${stagingDirectory}story_${String(i + 1).padStart(2, "0")}.png`;
+      await FileSystem.writeAsStringAsync(imageUri, b64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      slides.push({ ...slide, imageUri });
+    }
 
-  const result: StoryResult = { directory, campaign, createdAt: Date.now(), slides };
-  await FileSystem.writeAsStringAsync(
-    `${directory}manifest.json`,
-    JSON.stringify({ brief, slides: script, createdAt: result.createdAt }, null, 2),
-  );
-  return result;
+    const createdAt = Date.now();
+    await FileSystem.writeAsStringAsync(
+      `${stagingDirectory}manifest.json`,
+      JSON.stringify({ brief, slides: script, createdAt, status: "COMPLETE" }, null, 2),
+    );
+    await FileSystem.moveAsync({ from: stagingDirectory, to: directory });
+    return {
+      directory,
+      campaign,
+      createdAt,
+      slides: slides.map((slide) => ({
+        ...slide,
+        imageUri: slide.imageUri.replace(stagingDirectory, directory),
+      })),
+    };
+  } catch (error) {
+    await FileSystem.deleteAsync(stagingDirectory, { idempotent: true }).catch(() => {});
+    throw error;
+  }
 }
 
 /** Lista campanhas geradas previamente (mais recentes primeiro). */
@@ -97,6 +112,7 @@ export async function listCampaigns(): Promise<StoryResult[]> {
   const results: StoryResult[] = [];
 
   for (const name of entries) {
+    if (name.startsWith(".") || name.endsWith(".in_progress")) continue;
     const dir = `${STORIES_DIR}${name}/`;
     try {
       const files = await FileSystem.readDirectoryAsync(dir);

@@ -21,6 +21,7 @@ class StoryBrief:
     ai_image_provider: str | None = None
     company_summary: str = ""
     custom_image_prompt: str | None = None
+    image_style_instructions: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

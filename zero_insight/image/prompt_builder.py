@@ -77,6 +77,7 @@ def build_full_composition_prompt(
     )
     visual_idea = (slide.visual_idea or slide.image_prompt or "").strip()
     topic_context = f"{brief.topic}. {brief.objective}".strip(". ")
+    user_direction = (brief.image_style_instructions or "").strip()
 
     # --- Seção 1: descrição holística da peça ---
     bg_desc = (
@@ -121,6 +122,13 @@ In the lower third of the panel there is a prominent call-to-action button with 
 "{slide.cta}"
 
 {brand_line}\
+{f'''USER CUSTOMIZATION:
+Use the following user-edited direction as visual guidance. Replace any bracketed
+placeholder with the mandatory headline, body and CTA defined above; never copy
+placeholder text into the image:
+{user_direction}
+
+''' if user_direction else ''}\
 DESIGN RULES:
 - Clean typographic hierarchy: large headline > readable body > bold CTA button.
 - All text is fully legible — sufficient size, high contrast, clean sans-serif font.
@@ -263,6 +271,9 @@ Audience:
 
 Visual idea:
 {slide.visual_idea or slide.image_prompt}
+
+User customization:
+{brief.image_style_instructions or "No additional user customization."}
 
 Desired mood:
 Trustworthy, modern, clean, institutional, professional, calm, credible.

@@ -18,10 +18,7 @@ def _parse_br_number(text: str) -> float:
     elif "," in cleaned:
         cleaned = cleaned.replace(",", ".")
     else:
-        parts = cleaned.split(".")
-        if len(parts) > 2:
-            cleaned = "".join(parts[:-1]) + "." + parts[-1]
-        elif len(parts) == 2 and len(parts[1]) == 3:
+        if re.fullmatch(r"\d{1,3}(?:\.\d{3})+", cleaned):
             cleaned = cleaned.replace(".", "")
     try:
         return float(cleaned)

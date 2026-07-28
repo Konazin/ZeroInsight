@@ -1,36 +1,33 @@
-/**
- * Tema Midnight Purple — espelha a paleta do frontend desktop
- * (frontend/src/styles/globals.css) para consistência visual entre plataformas.
- */
+/** Sistema visual monocromático compartilhado com o app desktop. */
 export const colors = {
-  bgBase: "#0D0B1A",
-  bgSurface: "#15122A",
-  bgElevated: "#1C1830",
-  bgOverlay: "#100D22",
-  bgInput: "#191630",
+  bgBase: "#070707",
+  bgSurface: "#101010",
+  bgElevated: "#191919",
+  bgOverlay: "#0B0B0B",
+  bgInput: "#0D0D0D",
 
-  border: "#2A2347",
-  borderSubtle: "#1E1B38",
+  border: "#343434",
+  borderSubtle: "#232323",
 
-  textPrimary: "#F5F3FF",
-  textMuted: "#B8B2D9",
-  textSubtle: "#6B6494",
+  textPrimary: "#FAFAFA",
+  textMuted: "#B5B5B5",
+  textSubtle: "#777777",
 
-  accent: "#7C3AED",
-  accentHover: "#6D28D9",
-  accentLight: "#A78BFA",
-  accentBg: "#1E1540",
+  accent: "#FFFFFF",
+  accentHover: "#E6E6E6",
+  accentLight: "#FFFFFF",
+  accentBg: "#222222",
 
-  success: "#22C55E",
-  warning: "#F59E0B",
-  danger: "#EF4444",
+  success: "#FFFFFF",
+  warning: "#BDBDBD",
+  danger: "#FFFFFF",
 } as const;
 
 export const radius = {
-  sm: 8,
-  md: 10,
-  lg: 14,
-  xl: 16,
+  sm: 10,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
 } as const;
 
@@ -43,11 +40,11 @@ export const spacing = {
 } as const;
 
 export const font = {
-  h1: 22,
-  h2: 18,
-  h3: 15,
-  body: 14,
-  small: 12,
+  h1: 28,
+  h2: 20,
+  h3: 16,
+  body: 15,
+  small: 13,
   tiny: 11,
 } as const;
 

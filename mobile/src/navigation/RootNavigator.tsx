@@ -26,19 +26,18 @@ export function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       <Tab.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: colors.bgOverlay },
-          headerTitleStyle: { color: colors.textPrimary, fontSize: font.h3, fontWeight: "700" },
-          headerShadowVisible: false,
+          headerShown: false,
           tabBarStyle: {
             backgroundColor: colors.bgOverlay,
             borderTopColor: colors.borderSubtle,
-            height: 62,
-            paddingBottom: 8,
-            paddingTop: 6,
+            height: 72,
+            paddingBottom: 10,
+            paddingTop: 8,
           },
-          tabBarActiveTintColor: colors.accentLight,
+          tabBarActiveTintColor: colors.textPrimary,
           tabBarInactiveTintColor: colors.textSubtle,
-          tabBarLabelStyle: { fontSize: font.tiny, fontWeight: "600" },
+          tabBarLabelStyle: { fontSize: font.tiny, fontWeight: "700" },
+          tabBarItemStyle: { borderRadius: 12, marginHorizontal: 3 },
         }}
       >
         <Tab.Screen

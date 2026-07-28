@@ -113,7 +113,7 @@ class StoryRenderer:
         output_path: Path,
         logo_embedded: bool = False,
     ) -> Path:
-        """Salva imagem gerada pela IA sem sobreposições de texto ou contadores.
+        """Salva a imagem da IA e adiciona identidade/contador determinísticos.
 
         Quando logo_embedded=True a logo já foi incluída pela IA via /images/edit.
         Quando logo_embedded=False, adiciona nome da marca em texto se não houver logo,
@@ -139,6 +139,21 @@ class StoryRenderer:
                     font=brand_font,
                     fill=(255, 255, 255, 200),
                 )
+
+        draw = ImageDraw.Draw(image, "RGBA")
+        counter_font = _font(28, bold=True)
+        counter = f"{slide.order:02d}/{brief.slides:02d}"
+        box = draw.textbbox((0, 0), counter, font=counter_font)
+        counter_width = box[2] - box[0]
+        counter_height = box[3] - box[1]
+        x = self.width - margin - counter_width - 24
+        y = self.height - margin - counter_height - 20
+        draw.rounded_rectangle(
+            (x - 16, y - 10, x + counter_width + 16, y + counter_height + 12),
+            radius=14,
+            fill=(7, 13, 24, 150),
+        )
+        draw.text((x, y), counter, font=counter_font, fill=(255, 255, 255, 230))
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         image.convert("RGB").save(output_path, format="PNG")

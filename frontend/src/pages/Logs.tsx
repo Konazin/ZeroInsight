@@ -6,12 +6,16 @@ import { api } from "../lib/api";
 export function Logs() {
   const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.logs();
       setLines(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível carregar os logs.");
     } finally {
       setLoading(false);
     }
@@ -28,7 +32,14 @@ export function Logs() {
           {loading ? "..." : "Atualizar"}
         </button>
       </div>
-      <LogPanel lines={lines} />
+      {error ? (
+        <div className="error-state">
+          <p style={{ marginTop: 0 }}>{error}</p>
+          <button className="btn-ghost btn-sm" onClick={refresh}>Tentar novamente</button>
+        </div>
+      ) : (
+        <LogPanel lines={lines} />
+      )}
     </section>
   );
 }

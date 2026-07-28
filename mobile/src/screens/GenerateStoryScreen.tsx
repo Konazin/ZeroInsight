@@ -2,7 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Sparkles } from "lucide-react-native";
 import { useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Banner, Button, Card, Field, PageTitle, Screen } from "../components/ui";
 import { useConfig } from "../context/ConfigContext";
 import { OpenAIError, type StoryBrief } from "../lib/openai";
@@ -68,18 +68,31 @@ export function GenerateStoryScreen() {
       <PageTitle title="Gerar Story" subtitle="Preencha o briefing e a IA cria os slides." />
 
       <Card>
+        <Text style={styles.sectionLabel}>CONTEÚDO</Text>
         <Field label="Tema principal *" value={topic} onChangeText={setTopic} placeholder="Ex: RPV Federal" />
         <Field label="Objetivo" value={objective} onChangeText={setObjective} />
         <Field label="Público-alvo" value={audience} onChangeText={setAudience} />
+        <Text style={styles.sectionLabel}>TOM E CONVERSÃO</Text>
         <Field label="Tom de voz" value={tone} onChangeText={setTone} />
         <Field label="CTA" value={cta} onChangeText={setCta} />
-        <Field
-          label="Número de slides (1–10)"
-          value={slidesText}
-          onChangeText={setSlidesText}
-          keyboardType="number-pad"
-          hint={`Serão gerados ${slides} slide(s).`}
-        />
+        <Text style={styles.pickerLabel}>NÚMERO DE SLIDES</Text>
+        <View style={styles.slidePicker}>
+          {[1, 3, 5, 7, 10].map((value) => {
+            const active = slides === value;
+            return (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setSlidesText(String(value))}
+                style={[styles.slideOption, active && styles.slideOptionActive]}
+              >
+                <Text style={[styles.slideOptionText, active && styles.slideOptionTextActive]}>{value}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.pickerHint}>Cada slide gera uma imagem e consome créditos da API.</Text>
       </Card>
 
       {error && <Banner kind="error">{error}</Banner>}
@@ -106,7 +119,7 @@ export function GenerateStoryScreen() {
           label={running ? "Gerando…" : "Gerar stories agora"}
           onPress={handleGenerate}
           loading={running}
-          icon={<Sparkles size={17} color="#fff" />}
+          icon={<Sparkles size={17} color={colors.bgBase} />}
         />
       )}
 
@@ -136,6 +149,36 @@ export function GenerateStoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  sectionLabel: {
+    color: colors.textPrimary,
+    fontSize: font.tiny,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  pickerLabel: {
+    color: colors.textSubtle,
+    fontSize: font.tiny,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+  },
+  slidePicker: { flexDirection: "row", gap: spacing.sm },
+  slideOption: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgInput,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  slideOptionActive: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
+  slideOptionText: { color: colors.textMuted, fontSize: font.body, fontWeight: "700" },
+  slideOptionTextActive: { color: colors.bgBase },
+  pickerHint: { color: colors.textSubtle, fontSize: font.tiny, marginTop: spacing.sm },
   progressStep: { color: colors.textPrimary, fontSize: font.body, fontWeight: "600", marginBottom: spacing.sm },
   progressTrack: {
     height: 6,
@@ -143,7 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     overflow: "hidden",
   },
-  progressFill: { height: 6, borderRadius: radius.pill, backgroundColor: colors.accent },
+  progressFill: { height: 6, borderRadius: radius.pill, backgroundColor: colors.textPrimary },
   progressHint: { color: colors.textSubtle, fontSize: font.tiny, marginTop: spacing.sm },
   thumbRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
   thumb: {

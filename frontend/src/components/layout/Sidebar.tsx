@@ -43,14 +43,17 @@ export function Sidebar({ page, setPage }: { page: Page; setPage: (page: Page) =
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-icon"><BarChart3 size={16} color="#fff" /></span>
-        ZeroInsight
+        <span className="brand-icon"><BarChart3 size={16} color="#000" /></span>
+        <span>
+          ZeroInsight
+          <small>AI content studio</small>
+        </span>
       </div>
 
       {/* Ação principal */}
       <div className="sidebar-cta">
         <button className="sidebar-cta-btn" onClick={() => setPage("stories")}>
-          <Sparkles size={14} /> Criar Story
+          <Sparkles size={14} /> <span>Criar Story</span>
         </button>
       </div>
 
@@ -77,7 +80,7 @@ export function Sidebar({ page, setPage }: { page: Page; setPage: (page: Page) =
       </nav>
 
       <div className="sidebar-spacer" />
-      <div className="sidebar-footer">ZeroInsight · v{APP_VERSION}</div>
+      <div className="sidebar-footer">Desktop · v{APP_VERSION}</div>
     </aside>
   );
 }

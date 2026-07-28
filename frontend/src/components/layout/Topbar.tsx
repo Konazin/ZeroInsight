@@ -1,5 +1,18 @@
 import type { Health, ProviderState } from "../../types";
 import { ProviderBadge } from "../common/ProviderBadge";
+import { RefreshCw } from "lucide-react";
+import type { Page } from "../../App";
+
+const PAGE_META: Record<Page, { title: string; eyebrow: string }> = {
+  dashboard: { title: "Visão geral", eyebrow: "Workspace" },
+  stories: { title: "Criar stories", eyebrow: "Criação" },
+  posts: { title: "Criar posts", eyebrow: "Criação" },
+  brands: { title: "Marcas", eyebrow: "Biblioteca" },
+  outputs: { title: "Arquivos gerados", eyebrow: "Biblioteca" },
+  providers: { title: "IA e providers", eyebrow: "Sistema" },
+  settings: { title: "Configurações", eyebrow: "Sistema" },
+  logs: { title: "Logs do sistema", eyebrow: "Sistema" },
+};
 
 function StatusIndicator({
   dot,
@@ -21,13 +34,33 @@ function StatusIndicator({
   );
 }
 
-export function Topbar({ health, providers, brave }: { health: Health | null; providers: ProviderState | null; brave: string }) {
+export function Topbar({
+  page,
+  health,
+  providers,
+  brave,
+  refreshing,
+  onRefresh,
+}: {
+  page: Page;
+  health: Health | null;
+  providers: ProviderState | null;
+  brave: string;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
   const backendOnline = Boolean(health);
   const braveOnline = brave === "CDP ok";
+  const meta = PAGE_META[page];
 
   return (
     <header className="topbar">
       <div className="topbar-left">
+        <div className="topbar-page">
+          <span>{meta.eyebrow}</span>
+          <strong>{meta.title}</strong>
+        </div>
+        <div className="topbar-separator" />
         <StatusIndicator
           dot={backendOnline ? "online" : "offline"}
           label={backendOnline ? "Backend online" : "Backend offline"}
@@ -44,6 +77,15 @@ export function Topbar({ health, providers, brave }: { health: Health | null; pr
       <div className="topbar-actions">
         <ProviderBadge label="Texto" value={providers?.active.text ?? "-"} />
         <ProviderBadge label="Imagem" value={providers?.active.image ?? "-"} />
+        <button
+          className="btn-icon"
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="Atualizar status"
+          aria-label="Atualizar status do sistema"
+        >
+          <RefreshCw size={15} className={refreshing ? "is-spinning" : ""} />
+        </button>
       </div>
     </header>
   );

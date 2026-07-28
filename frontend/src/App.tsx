@@ -13,11 +13,19 @@ import type { Health, ProviderState } from "./types";
 
 export type Page = "dashboard" | "brands" | "providers" | "stories" | "posts" | "outputs" | "settings" | "logs";
 
+const PAGES: Page[] = ["dashboard", "brands", "providers", "stories", "posts", "outputs", "settings", "logs"];
+
+function initialPage(): Page {
+  const hash = window.location.hash.replace("#/", "") as Page;
+  return PAGES.includes(hash) ? hash : "dashboard";
+}
+
 export function App() {
-  const [page, setPage] = useState<Page>("dashboard");
+  const [page, setPage] = useState<Page>(initialPage);
   const [health, setHealth] = useState<Health | null>(null);
   const [providers, setProviders] = useState<ProviderState | null>(null);
   const [brave, setBrave] = useState<string>("verificando");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     void refreshStatus();
@@ -25,7 +33,19 @@ export function App() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const onHashChange = () => setPage(initialPage());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    window.location.hash = `/${page}`;
+    window.scrollTo({ top: 0 });
+  }, [page]);
+
   async function refreshStatus() {
+    setRefreshing(true);
     try {
       const [h, p, b] = await Promise.all([api.health(), api.providers(), api.braveStatus()]);
       setHealth(h);
@@ -33,7 +53,10 @@ export function App() {
       setBrave(b.ok ? "CDP ok" : "CDP offline");
     } catch {
       setHealth(null);
+      setProviders(null);
       setBrave("backend offline");
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -49,7 +72,15 @@ export function App() {
   }[page];
 
   return (
-    <AppShell page={page} setPage={setPage} health={health} providers={providers} brave={brave}>
+    <AppShell
+      page={page}
+      setPage={setPage}
+      health={health}
+      providers={providers}
+      brave={brave}
+      refreshing={refreshing}
+      onRefresh={refreshStatus}
+    >
       {content}
     </AppShell>
   );

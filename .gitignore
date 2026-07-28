@@ -27,6 +27,7 @@ mobile/dist/
 mobile/web-build/
 
 # Build artifacts — instalador gerado vai para GitHub Releases, não no repo
+build/
 dist/
 dist-electron/
 

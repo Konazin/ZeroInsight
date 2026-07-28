@@ -17,6 +17,7 @@ class MockImageProvider(ImageProvider):
         height: int,
         output_path: Path,
         negative_prompt: str | None = None,
+        logo_path: str | None = None,
     ) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         image = Image.new("RGB", (width, height), (17, 24, 39))

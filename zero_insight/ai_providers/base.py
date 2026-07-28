@@ -64,6 +64,7 @@ class ImageProvider(ABC):
         height: int,
         output_path: Path,
         negative_prompt: str | None = None,
+        logo_path: str | None = None,
     ) -> Path:
         raise NotImplementedError
 
@@ -172,6 +173,7 @@ class OpenAICompatibleImageProvider(ImageProvider):
         height: int,
         output_path: Path,
         negative_prompt: str | None = None,
+        logo_path: str | None = None,
     ) -> Path:
         api_key = resolve_api_key(self.config)
         if not api_key:

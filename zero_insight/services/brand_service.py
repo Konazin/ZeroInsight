@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
-
-from zero_insight.ai_providers import ProviderConfig, create_text_provider
+from zero_insight.ai_providers import create_text_provider, provider_config_from_settings
 from zero_insight.brand import BrandExtractor, BrandProfile, BrandValidator, DocumentLoader
 from zero_insight.brand.cache import brand_dir, list_brand_profiles, save_brand_profile, save_source_document, slugify_brand
 from zero_insight.config import Settings
@@ -34,7 +32,13 @@ class BrandService:
 
         provider = None
         if use_external_ai and self.settings.allow_external_ai_for_brand_docs:
-            provider = create_text_provider(self._provider_config("text", self.settings.default_text_provider))
+            provider = create_text_provider(
+                provider_config_from_settings(
+                    self.settings,
+                    "text",
+                    self.settings.default_text_provider,
+                )
+            )
             if on_log:
                 on_log("INFO", f"Usando provider texto: {provider.name}")
         elif on_log:
@@ -65,21 +69,6 @@ class BrandService:
         data = json.loads(raw_json)
         profile = BrandProfile.from_dict(data)
         return save_brand_profile(profile, brand_dir(profile.brand_name))
-
-    def _provider_config(self, kind: str, name: str) -> ProviderConfig:
-        providers: dict[str, Any] = self.settings.providers or {}
-        raw = providers.get(kind, {}).get(name, {}) if isinstance(providers, dict) else {}
-        return ProviderConfig(
-            provider_type=kind,  # type: ignore[arg-type]
-            provider_name=name or "mock",
-            model=str(raw.get("model") or ""),
-            api_key_env=raw.get("api_key_env"),
-            api_key_value=raw.get("api_key_value"),
-            base_url=raw.get("base_url"),
-            endpoint=raw.get("endpoint"),
-            extra_headers=dict(raw.get("extra_headers") or {}),
-            extra_params=dict(raw.get("extra_params") or {}),
-        )
 
     @staticmethod
     def profile_label(path: Path) -> str:

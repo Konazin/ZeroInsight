@@ -6,11 +6,12 @@ import type { Health, ProviderState } from "../types";
 export function Dashboard({ health, providers, onNavigate }: { health: Health | null; providers: ProviderState | null; onNavigate: (page: Page) => void }) {
   const backendOnline = Boolean(health);
   const openaiOk = Boolean(providers?.openai.configured);
+  const setupRequired = providers !== null && !openaiOk;
 
   return (
     <>
       {/* Aviso guiado — só aparece quando algo precisa de atenção */}
-      {!openaiOk && (
+      {setupRequired && (
         <button className="dash-setup-banner" onClick={() => onNavigate("settings")}>
           <span className="dash-setup-icon"><AlertTriangle size={16} /></span>
           <span className="dash-setup-text">

@@ -27,7 +27,7 @@ export function ProviderSettings({ providers }: { providers: ProviderState | nul
         </div>
         <div className="mini-card">
           OpenAI
-          <strong style={{ color: providers.openai.configured ? "#4ade80" : "#f59e0b" }}>
+          <strong style={{ color: providers.openai.configured ? "var(--text-primary)" : "var(--text-muted)" }}>
             {providers.openai.configured ? "Configurada" : "Pendente"}
           </strong>
         </div>
@@ -35,7 +35,7 @@ export function ProviderSettings({ providers }: { providers: ProviderState | nul
 
       {providers.openai.configured && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: "#94a3b8" }}>Modelos OpenAI</p>
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-subtle)" }}>Modelos OpenAI</p>
           <div className="grid two">
             <div className="mini-card">Texto<strong style={{ fontSize: 13 }}>{providers.openai.text_model}</strong></div>
             <div className="mini-card">Imagem<strong style={{ fontSize: 13 }}>{providers.openai.image_model} ({providers.openai.image_size})</strong></div>
@@ -45,7 +45,7 @@ export function ProviderSettings({ providers }: { providers: ProviderState | nul
 
       {availableText.length > 0 && (
         <div>
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: "#94a3b8" }}>Disponíveis</p>
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-subtle)" }}>Disponíveis</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {availableText.map((p) => <span key={p} className="provider-badge">{p}</span>)}
             {availableImage.filter((p) => !availableText.includes(p)).map((p) => <span key={p} className="provider-badge">{p} (img)</span>)}

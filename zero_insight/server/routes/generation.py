@@ -53,6 +53,7 @@ def generate_story(request: GenerateStoryRequest) -> dict:
             ai_image_provider=request.ai_image_provider,
             company_summary=request.company_summary,
             custom_image_prompt=request.custom_image_prompt or None,
+            image_style_instructions=request.image_style_instructions or None,
         )
         ok, manifest = PipelineService(settings).run_stories(brief, from_dino=request.from_dino)
         return {"ok": ok, "manifest": manifest}
@@ -103,4 +104,3 @@ def image_preview(request: ImagePreviewRequest) -> dict:
     except Exception as exc:
         logger.exception("Falha na prévia de imagem")
         raise HTTPException(status_code=500, detail=GENERIC_ERROR_DETAIL) from exc
-

@@ -1,4 +1,4 @@
-import type { BrandColor, BrandItem, BrandProfile, Health, OutputItem, PromptTemplate, ProviderState, Settings } from "../types";
+import type { BrandItem, BrandProfile, Health, OutputItem, PromptTemplate, ProviderState, Settings } from "../types";
 
 const API_BASE = import.meta.env.VITE_ZEROINSIGHT_API ?? "http://127.0.0.1:8765/api";
 
@@ -18,6 +18,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail || `HTTP ${response.status}`);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -54,8 +55,11 @@ export const api = {
   savePrompt: (data: { name: string; prompt: string; description?: string; brand_id?: string | null; tags?: string[] }) =>
     request<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(data) }),
   deletePrompt: (id: string) =>
-    fetch(`${API_BASE}/prompts/${id}`, { method: "DELETE" }),
+    request<void>(`/prompts/${id}`, { method: "DELETE" }),
   fileUrl: (path: string) => `${API_BASE}/outputs/file?path=${encodeURIComponent(path)}`,
   openFolder: (path: string) =>
-    fetch(`${API_BASE}/outputs/open-folder?path=${encodeURIComponent(path)}`, { method: "POST" }),
+    request<{ ok: boolean; detail?: string }>(
+      `/outputs/open-folder?path=${encodeURIComponent(path)}`,
+      { method: "POST" },
+    ),
 };

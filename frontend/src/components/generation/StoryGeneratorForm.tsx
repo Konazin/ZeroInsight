@@ -61,13 +61,25 @@ export function StoryGeneratorForm() {
   const promptGenerated = useRef(false);
 
   // Step 3 — generate
-  const [imageProvider, setImageProvider] = useState<"openai" | "mock">("openai");
+  const [imageProvider, setImageProvider] = useState("mock");
+  const [imageProviders, setImageProviders] = useState<string[]>(["mock", "local", "openai"]);
   const [generating, setGenerating] = useState(false);
   const [genFeedback, setGenFeedback] = useState<Feedback>(null);
   const [genResult, setGenResult] = useState<GenerateResult | null>(null);
 
   useEffect(() => {
     void api.brands().then(setBrands).catch(() => {});
+    void api.providers()
+      .then((state) => {
+        const available = state.available.image ?? [];
+        setImageProviders(available);
+        setImageProvider(
+          available.includes(state.active.image)
+            ? state.active.image
+            : (available[0] ?? "mock"),
+        );
+      })
+      .catch(() => {});
   }, []);
 
   // Auto-generate prompt on first entry to step 2 (somente no modo assistido)
@@ -76,13 +88,13 @@ export function StoryGeneratorForm() {
       promptGenerated.current = true;
       void doGeneratePrompt();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, manualMode]);
 
   async function doGeneratePrompt() {
+    promptGenerated.current = true;
     setLoadingPrompt(true);
     setPromptEdited(false); // reset: novo auto-gerado não conta como edição manual
-    setPromptFeedback({ text: "Gerando prompt com IA…", kind: "info" });
+    setPromptFeedback({ text: "Montando prévia do prompt…", kind: "info" });
     try {
       const res = await api.imagePreview({
         topic: topic.trim(),
@@ -113,6 +125,10 @@ export function StoryGeneratorForm() {
   }
 
   async function doGenerate() {
+    if (manualMode && !prompt.trim()) {
+      setGenFeedback({ text: "Escreva um prompt antes de gerar no modo manual.", kind: "error" });
+      return;
+    }
     setGenerating(true);
     setGenFeedback({ text: "Enviando para geração…", kind: "info" });
     setGenResult(null);
@@ -126,9 +142,10 @@ export function StoryGeneratorForm() {
         slides,
         company_summary: companySummary,
         brand_profile_id: selectedBrand?.id ?? null,
-        // Envia custom_image_prompt se: modo manual OU usuário editou manualmente.
-        // No modo assistido sem edição, o runner usa build_full_composition_prompt() por slide.
-        custom_image_prompt: (manualMode || promptEdited) && prompt.trim() ? prompt.trim() : null,
+        // Modo manual envia o prompt diretamente. Edições no modo assistido
+        // viram orientação adicional, preservando o conteúdo específico de cada slide.
+        custom_image_prompt: manualMode && prompt.trim() ? prompt.trim() : null,
+        image_style_instructions: !manualMode && promptEdited && prompt.trim() ? prompt.trim() : null,
         ai_image_provider: imageProvider,
       }) as GenerateResult;
       setGenResult(res);
@@ -136,7 +153,12 @@ export function StoryGeneratorForm() {
       setGenFeedback(
         ok
           ? { text: "Pacote gerado com sucesso!", kind: "success" }
-          : { text: "Geração concluída com advertências — verifique os detalhes abaixo.", kind: "error" }
+          : {
+              text: res.manifest?.status === "FAILED"
+                ? "A geração falhou — verifique os erros abaixo."
+                : "Geração concluída com advertências — verifique os detalhes abaixo.",
+              kind: "error",
+            }
       );
     } catch (err) {
       setGenFeedback({
@@ -214,7 +236,7 @@ export function StoryGeneratorForm() {
               setPromptFeedback(null);
             } else {
               // Voltando para modo assistido: regenera
-              promptGenerated.current = false;
+              promptGenerated.current = true;
               setPrompt("");
               setPromptEdited(false);
               void doGeneratePrompt();
@@ -244,6 +266,7 @@ export function StoryGeneratorForm() {
           tone={tone}
           cta={cta}
           imageProvider={imageProvider}
+          imageProviders={imageProviders}
           setImageProvider={setImageProvider}
           generating={generating}
           feedback={genFeedback}
@@ -561,12 +584,12 @@ function Step2Prompt(props: {
         <h3 className="wizard-step-title">
           Prompt de imagem
           {props.manualMode && (
-            <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 400, color: "var(--accent)", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 6 }}>
+            <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 500, color: "var(--text-primary)", background: "var(--bg-elevated)", border: "1px solid var(--border)", padding: "2px 8px", borderRadius: 6 }}>
               modo manual
             </span>
           )}
           {!props.manualMode && props.promptEdited && (
-            <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 400, color: "var(--warning)", background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: 6 }}>
+            <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 500, color: "var(--text-muted)", background: "var(--bg-elevated)", border: "1px solid var(--border)", padding: "2px 8px", borderRadius: 6 }}>
               editado manualmente
             </span>
           )}
@@ -627,7 +650,7 @@ function Step2Prompt(props: {
           {/* Editable textarea */}
           <textarea
             className="prompt-preview"
-            value={props.loading ? "Gerando prompt com IA…" : props.prompt}
+            value={props.loading ? "Montando prévia do prompt…" : props.prompt}
             onChange={(e) => !props.loading && props.setPrompt(e.target.value)}
             readOnly={props.loading}
             placeholder={props.manualMode
@@ -764,8 +787,9 @@ function Step3Generate(props: {
   audience: string;
   tone: string;
   cta: string;
-  imageProvider: "openai" | "mock";
-  setImageProvider: (v: "openai" | "mock") => void;
+  imageProvider: string;
+  imageProviders: string[];
+  setImageProvider: (v: string) => void;
   generating: boolean;
   feedback: Feedback;
   result: GenerateResult | null;
@@ -817,28 +841,30 @@ function Step3Generate(props: {
       {!props.result && (
         <div className="gen-provider-picker">
           <span className="gen-provider-label">Provedor de imagem</span>
-          <label className={`gen-provider-option${props.imageProvider === "openai" ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="imgProvider"
-              value="openai"
-              checked={props.imageProvider === "openai"}
-              onChange={() => props.setImageProvider("openai")}
-            />
-            <span className="gen-provider-name">OpenAI</span>
-            <span className="gen-provider-hint">gpt-image-2 · requer chave API</span>
-          </label>
-          <label className={`gen-provider-option${props.imageProvider === "mock" ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="imgProvider"
-              value="mock"
-              checked={props.imageProvider === "mock"}
-              onChange={() => props.setImageProvider("mock")}
-            />
-            <span className="gen-provider-name">Mock</span>
-            <span className="gen-provider-hint">Gradiente local · sem API · rápido</span>
-          </label>
+          {props.imageProviders.map((provider) => {
+            const hints: Record<string, string> = {
+              openai: "Geração completa · requer chave API",
+              custom: "API OpenAI-compatible configurada",
+              local: "Geração local · sem API",
+              mock: "Prévia local · sem API · rápida",
+            };
+            return (
+              <label
+                key={provider}
+                className={`gen-provider-option${props.imageProvider === provider ? " selected" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="imgProvider"
+                  value={provider}
+                  checked={props.imageProvider === provider}
+                  onChange={() => props.setImageProvider(provider)}
+                />
+                <span className="gen-provider-name">{provider}</span>
+                <span className="gen-provider-hint">{hints[provider] ?? "Provider configurado"}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 
@@ -846,7 +872,7 @@ function Step3Generate(props: {
         <button
           onClick={props.onGenerate}
           disabled={props.generating}
-          style={{ marginTop: 20, width: "100%", justifyContent: "center", padding: "13px 24px", fontSize: 15, fontWeight: 700, borderRadius: 10, boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}
+          style={{ marginTop: 20, width: "100%", justifyContent: "center", padding: "13px 24px", fontSize: 15, fontWeight: 700, borderRadius: 10 }}
         >
           <PackageCheck size={17} />
           {props.generating ? "Gerando pacote…" : "Gerar stories agora"}

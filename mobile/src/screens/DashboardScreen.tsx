@@ -33,7 +33,7 @@ export function DashboardScreen() {
 
       <Card style={styles.hero}>
         <View style={styles.heroIcon}>
-          <ImageIcon size={24} color="#fff" />
+          <ImageIcon size={24} color={colors.bgBase} />
         </View>
         <Text style={styles.heroTitle}>Criar novo Story</Text>
         <Text style={styles.heroDesc}>
@@ -42,7 +42,7 @@ export function DashboardScreen() {
         <Button
           label="Criar agora"
           onPress={() => navigation.navigate("Generate")}
-          icon={<ArrowRight size={16} color="#fff" />}
+          icon={<ArrowRight size={16} color={colors.bgBase} />}
         />
       </Card>
 
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.32)",
-    backgroundColor: "rgba(245,158,11,0.08)",
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
   },
   setupIcon: {
     width: 34,
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(245,158,11,0.16)",
+    backgroundColor: colors.bgSurface,
   },
   setupTitle: { color: colors.textPrimary, fontSize: font.body, fontWeight: "600" },
   setupDesc: { color: colors.textSubtle, fontSize: font.small },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.accentBg,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.28)",
+    borderColor: colors.border,
   },
   actionLabel: { color: colors.textPrimary, fontSize: font.body, fontWeight: "600" },
   actionDesc: { color: colors.textSubtle, fontSize: font.small },

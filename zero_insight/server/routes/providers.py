@@ -4,7 +4,11 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from zero_insight.ai_providers import list_ai_providers, test_provider
+from zero_insight.ai_providers import (
+    list_ai_providers,
+    provider_config_from_settings,
+    test_provider,
+)
 from zero_insight.config import Settings
 from zero_insight.server.schemas import ProviderTestRequest
 
@@ -41,9 +45,16 @@ def test_provider_route(request: ProviderTestRequest) -> dict:
     if not request.name.strip():
         raise HTTPException(status_code=422, detail="O nome do provider não pode ser vazio.")
     try:
-        ok, message = test_provider(request.kind, request.name.strip())
+        name = request.name.strip()
+        settings = Settings.from_env()
+        config = provider_config_from_settings(settings, request.kind, name)
+        ok, message = test_provider(
+            request.kind,
+            name,
+            config=config,
+            prompt=request.prompt,
+        )
         return {"ok": ok, "message": message}
     except Exception as exc:
         logger.warning("Erro ao testar provider %s:%s - %s", request.kind, request.name, exc)
         return {"ok": False, "message": str(exc)}
-

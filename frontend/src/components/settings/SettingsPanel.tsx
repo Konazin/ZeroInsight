@@ -25,7 +25,7 @@ const GROUPS: Array<{ title: string; fields: Record<string, FieldMeta> }> = [
     title: "Provedores padrão",
     fields: {
       default_text_provider: { label: "Texto", placeholder: "openai, groq, mock..." },
-      default_image_provider: { label: "Imagem", placeholder: "openai, stability, mock..." },
+      default_image_provider: { label: "Imagem", placeholder: "openai, custom, local, mock" },
       default_vision_provider: { label: "Visão", placeholder: "openai, mock..." },
     },
   },
@@ -38,7 +38,12 @@ export function SettingsPanel({ onSaved }: { onSaved: () => void }) {
   const [status, setStatus] = useState<{ text: string; kind: "success" | "error" } | null>(null);
 
   useEffect(() => {
-    void api.settings().then((s) => { setSettings(s); setLoading(false); });
+    void api.settings()
+      .then(setSettings)
+      .catch((error) => {
+        setStatus({ text: error instanceof Error ? error.message : "Falha ao carregar configurações.", kind: "error" });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   function update(key: string, value: string) {

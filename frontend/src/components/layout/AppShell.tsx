@@ -11,6 +11,8 @@ export function AppShell({
   health,
   providers,
   brave,
+  refreshing,
+  onRefresh,
 }: {
   children: ReactNode;
   page: Page;
@@ -18,12 +20,21 @@ export function AppShell({
   health: Health | null;
   providers: ProviderState | null;
   brave: string;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
   return (
     <div className="app-shell">
       <Sidebar page={page} setPage={setPage} />
       <main className="main">
-        <Topbar health={health} providers={providers} brave={brave} />
+        <Topbar
+          page={page}
+          health={health}
+          providers={providers}
+          brave={brave}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
         <div className="content">{children}</div>
       </main>
     </div>

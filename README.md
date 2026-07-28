@@ -86,9 +86,9 @@ Acesse `http://127.0.0.1:5173`.
 | **3 — Prompt** | Prévia do prompt gerado pela IA; modo **Assistido** ou **Manual** |
 | **4 — Gerar** | Escolhe provedor de imagem e dispara a pipeline |
 
-**Modo assistido:** a IA monta o prompt completo por slide com injeção de cores, estilo e regras do BrandProfile.
+**Modo assistido:** a aplicação monta um prompt completo por slide com injeção de cores, estilo e regras do BrandProfile. Edições feitas pelo usuário são aplicadas como direção visual sem substituir o título, corpo e CTA específicos de cada slide.
 
-**Modo manual:** o textarea fica em branco; o que o usuário escrever vai direto ao modelo sem nenhuma modificação.
+**Modo manual:** o textarea fica em branco; o texto do usuário é a direção principal enviada ao modelo. Antes do envio, o backend valida termos proibidos e acrescenta apenas as regras obrigatórias de compliance do provider.
 
 Templates de prompt podem ser salvos e carregados em qualquer geração futura.
 
@@ -238,6 +238,18 @@ stories/
 ```
 
 O `manifest.json` registra providers, modelos, prompts usados, `revised_prompt` da OpenAI quando disponível, e resultado da validação de compliance da marca.
+
+O campo `prompt_sent` registra o prompt efetivamente enviado em cada slide, enquanto `prompt` preserva o pacote de direção visual usado para auditoria.
+
+---
+
+## Testes
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+cd frontend && npm run lint && npm run build
+cd ../mobile && npm run typecheck
+```
 
 ---
 

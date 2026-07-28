@@ -115,8 +115,8 @@ const SPLASH_HTML = `<!DOCTYPE html>
   *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
   html, body {
     width:100%; height:100%; overflow:hidden;
-    background:#0D0B1A;
-    color:#F5F3FF;
+    background:#070707;
+    color:#FAFAFA;
     font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
@@ -126,17 +126,18 @@ const SPLASH_HTML = `<!DOCTYPE html>
   }
   .icon {
     width:60px; height:60px; border-radius:16px;
-    background:linear-gradient(135deg,#A78BFA 0%,#7C3AED 100%);
+    background:#FFFFFF;
+    color:#070707;
     display:flex; align-items:center; justify-content:center;
     font-size:30px;
-    box-shadow:0 6px 28px rgba(124,58,237,0.45);
+    box-shadow:0 8px 28px rgba(0,0,0,0.5);
   }
   .name { font-size:22px; font-weight:700; letter-spacing:-0.4px; }
-  .status { font-size:12px; color:#6B6494; margin-top:2px; }
+  .status { font-size:12px; color:#777777; margin-top:2px; }
   .ring {
     width:28px; height:28px; margin-top:6px;
-    border:2.5px solid #2A2347;
-    border-top-color:#7C3AED;
+    border:2.5px solid #333333;
+    border-top-color:#FFFFFF;
     border-radius:50%;
     animation:spin .75s linear infinite;
   }
@@ -161,7 +162,7 @@ function createSplash() {
     resizable: false,
     center: true,
     transparent: false,
-    backgroundColor: '#0D0B1A',
+    backgroundColor: '#070707',
     alwaysOnTop: true,
     skipTaskbar: true,
     title: 'ZeroInsight',
@@ -181,7 +182,7 @@ function createMainWindow() {
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: '#0D0B1A',
+    backgroundColor: '#070707',
     title: 'ZeroInsight',
     show: false,
     webPreferences: {

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+from typing import Any
 
 from zero_insight.ai_providers.base import TextProvider
 
@@ -32,3 +34,32 @@ class MockTextProvider(TextProvider):
                 ensure_ascii=False,
             )
         return "Texto gerado pelo mock provider."
+
+    def generate_json(
+        self,
+        prompt: str,
+        schema_hint: dict[str, Any] | None = None,
+        system_prompt: str | None = None,
+    ) -> dict[str, Any]:
+        if (schema_hint or {}).get("title") == "ZeroInsightStoryScript":
+            match = re.search(r"Use exatamente (\d+) slides", prompt)
+            count = max(1, int(match.group(1))) if match else 1
+            return {
+                "slides": [
+                    {
+                        "order": order,
+                        "hook": "Informação clara para uma decisão segura",
+                        "body": "Confira contexto, documentos e riscos antes de decidir.",
+                        "cta": "Fale com nossa equipe",
+                        "visual_idea": "composição institucional limpa",
+                        "image_prompt": "visual jurídico moderno e confiável",
+                        "compliance_notes": ["Não prometer resultados."],
+                    }
+                    for order in range(1, count + 1)
+                ]
+            }
+        return super().generate_json(
+            prompt,
+            schema_hint=schema_hint,
+            system_prompt=system_prompt,
+        )

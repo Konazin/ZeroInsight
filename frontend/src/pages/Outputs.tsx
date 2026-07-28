@@ -14,13 +14,17 @@ function formatSize(bytes?: number): string {
 export function Outputs() {
   const [outputs, setOutputs] = useState<OutputItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "story" | "post">("all");
 
   const refresh = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.outputs();
       setOutputs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível carregar as saídas.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +57,12 @@ export function Outputs() {
         </div>
       </div>
 
-      {loading && outputs.length === 0 ? (
+      {error ? (
+        <div className="error-state">
+          <p style={{ marginTop: 0 }}>{error}</p>
+          <button className="btn-ghost btn-sm" onClick={refresh}>Tentar novamente</button>
+        </div>
+      ) : loading && outputs.length === 0 ? (
         <div className="loading-state">Carregando saídas...</div>
       ) : visible.length === 0 ? (
         <div className="empty-state" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
@@ -71,6 +80,19 @@ export function Outputs() {
               <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
                 {item.size ? <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>{formatSize(item.size)}</span> : null}
                 <span style={{ fontSize: 13 }}>{formatDate(item.modified_at)}</span>
+                <button
+                  className="btn-ghost btn-sm"
+                  onClick={() => {
+                    void api.openFolder(item.path).then((result) => {
+                      if (!result.ok) setError(result.detail ?? "Não foi possível abrir a pasta.");
+                    }).catch((err) => {
+                      setError(err instanceof Error ? err.message : "Não foi possível abrir a pasta.");
+                    });
+                  }}
+                  title="Abrir no explorador de arquivos"
+                >
+                  <FolderOpen size={14} /> Abrir
+                </button>
               </div>
             </div>
           ))}

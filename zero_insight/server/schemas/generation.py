@@ -28,6 +28,7 @@ class GenerateStoryRequest(BaseModel):
     ai_image_provider: str | None = Field(default=None, max_length=_SHORT)
     company_summary: str = Field(default="", max_length=_LONG)
     custom_image_prompt: str | None = Field(default=None, max_length=_PROMPT)
+    image_style_instructions: str | None = Field(default=None, max_length=_PROMPT)
 
 
 class ImagePreviewRequest(BaseModel):

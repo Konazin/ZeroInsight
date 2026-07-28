@@ -15,6 +15,7 @@ export function SettingsScreen() {
   const [imageModel, setImageModel] = useState(config.imageModel || DEFAULT_IMAGE_MODEL);
   const [feedback, setFeedback] = useState<{ kind: "success" | "error" | "info"; text: string } | null>(null);
   const [checking, setChecking] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setTextModel(config.textModel || DEFAULT_TEXT_MODEL);
@@ -24,9 +25,20 @@ export function SettingsScreen() {
   async function handleSave() {
     setFeedback(null);
     const key = apiKey.trim() || config.apiKey; // mantém a chave atual se não digitou nova
-    await update({ apiKey: key, textModel, imageModel });
-    setApiKey("");
-    setFeedback({ kind: "success", text: "Configurações salvas com segurança." });
+    if (!textModel.trim() || !imageModel.trim()) {
+      setFeedback({ kind: "error", text: "Informe os modelos de texto e imagem." });
+      return;
+    }
+    setSaving(true);
+    try {
+      await update({ apiKey: key, textModel: textModel.trim(), imageModel: imageModel.trim() });
+      setApiKey("");
+      setFeedback({ kind: "success", text: "Configurações salvas com segurança." });
+    } catch {
+      setFeedback({ kind: "error", text: "Não foi possível salvar no cofre seguro." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleValidate() {
@@ -72,7 +84,7 @@ export function SettingsScreen() {
         {feedback && <Banner kind={feedback.kind}>{feedback.text}</Banner>}
 
         <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-          <Button label="Salvar" onPress={handleSave} />
+          <Button label={saving ? "Salvando…" : "Salvar configurações"} onPress={handleSave} loading={saving} />
           <Button label={checking ? "Validando…" : "Testar chave"} variant="ghost" onPress={handleValidate} loading={checking} />
         </View>
       </Card>

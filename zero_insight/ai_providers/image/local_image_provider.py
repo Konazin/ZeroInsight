@@ -22,6 +22,7 @@ class LocalImageProvider(ImageProvider):
         height: int,
         output_path: Path,
         negative_prompt: str | None = None,
+        logo_path: str | None = None,
     ) -> Path:
         if self.config.model:
             try:

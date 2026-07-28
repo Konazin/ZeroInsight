@@ -70,7 +70,7 @@ export function Button({
   const bg =
     variant === "primary" ? colors.accent : variant === "danger" ? colors.danger : "transparent";
   const borderColor = variant === "ghost" ? colors.border : "transparent";
-  const textColor = variant === "ghost" ? colors.textMuted : "#fff";
+  const textColor = variant === "ghost" ? colors.textMuted : colors.bgBase;
 
   return (
     <Pressable
@@ -117,10 +117,10 @@ export function Field({
 
 export function Banner({ kind, children }: { kind: "info" | "success" | "error" | "warning"; children: ReactNode }) {
   const map = {
-    info: { color: colors.accentLight, bg: "rgba(124,58,237,0.10)" },
-    success: { color: colors.success, bg: "rgba(34,197,94,0.10)" },
-    error: { color: colors.danger, bg: "rgba(239,68,68,0.10)" },
-    warning: { color: colors.warning, bg: "rgba(245,158,11,0.10)" },
+    info: { color: colors.textPrimary, bg: colors.bgElevated },
+    success: { color: colors.textPrimary, bg: colors.bgElevated },
+    error: { color: colors.textPrimary, bg: colors.bgElevated },
+    warning: { color: colors.textMuted, bg: colors.bgElevated },
   }[kind];
   return (
     <View style={[styles.banner, { backgroundColor: map.bg, borderColor: map.color }]}>
@@ -137,12 +137,12 @@ export function Pill({ label, active = false }: { label: string; active?: boolea
       style={[
         styles.pill,
         {
-          backgroundColor: active ? colors.accentBg : colors.bgElevated,
-          borderColor: active ? colors.accent : colors.border,
+          backgroundColor: active ? colors.textPrimary : colors.bgElevated,
+          borderColor: active ? colors.textPrimary : colors.border,
         },
       ]}
     >
-      <Text style={{ color: active ? colors.accentLight : colors.textMuted, fontSize: font.small }}>
+      <Text style={{ color: active ? colors.bgBase : colors.textMuted, fontSize: font.small, fontWeight: "600" }}>
         {label}
       </Text>
     </View>
@@ -151,15 +151,15 @@ export function Pill({ label, active = false }: { label: string; active?: boolea
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgBase },
-  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
-  pageTitle: { color: colors.textPrimary, fontSize: font.h1, fontWeight: "700", letterSpacing: -0.4 },
-  pageSubtitle: { color: colors.textMuted, fontSize: font.body, marginTop: 4, lineHeight: 20 },
+  scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 112 },
+  pageTitle: { color: colors.textPrimary, fontSize: font.h1, fontWeight: "800", letterSpacing: -0.8 },
+  pageSubtitle: { color: colors.textMuted, fontSize: font.body, marginTop: 6, lineHeight: 22 },
   card: {
     backgroundColor: colors.bgSurface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.lg,
-    padding: spacing.lg,
+    padding: 18,
     marginBottom: spacing.md,
   },
   button: {
@@ -169,10 +169,11 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderRadius: radius.sm,
+    minHeight: 50,
     paddingVertical: 13,
     paddingHorizontal: spacing.lg,
   },
-  buttonText: { fontSize: font.body, fontWeight: "600" },
+  buttonText: { fontSize: font.body, fontWeight: "700" },
   fieldLabel: {
     color: colors.textSubtle,
     fontSize: font.tiny,
@@ -188,7 +189,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 11,
+    minHeight: 50,
+    paddingVertical: 12,
     color: colors.textPrimary,
     fontSize: font.body,
   },

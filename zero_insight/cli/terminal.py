@@ -429,8 +429,6 @@ class TerminalApp:
                 Choice("mock", name="Mock local simples"),
                 Choice("openai", name="OpenAI (pago/API)"),
                 Choice("custom", name="Custom OpenAI-compatible"),
-                Choice("stability", name="Stability"),
-                Choice("replicate", name="Replicate"),
             ],
             default=defaults.get("image_provider", "local"),
         )
@@ -575,8 +573,6 @@ class TerminalApp:
                     Choice("mock", name="mock (sem custo/API, simples)"),
                     Choice("openai", name="openai (pago/API)"),
                     Choice("custom", name="custom OpenAI-compatible"),
-                    Choice("stability", name="stability"),
-                    Choice("replicate", name="replicate"),
                 ],
             )
         elif field == "blog_brand_name":

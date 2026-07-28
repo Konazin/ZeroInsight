@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-from zero_insight.ai_providers.base import ImageProvider, ProviderError, TextProvider, VisionProvider
+from tempfile import TemporaryDirectory
+from pathlib import Path
+
+from zero_insight.ai_providers.base import (
+    ImageProvider,
+    ProviderError,
+    TextProvider,
+    VisionProvider,
+    resolve_api_key,
+)
 from zero_insight.ai_providers.config import ProviderConfig
 from zero_insight.ai_providers.image.custom_image_provider import CustomImageProvider
 from zero_insight.ai_providers.image.local_image_provider import LocalImageProvider
 from zero_insight.ai_providers.image.mock_image_provider import MockImageProvider
 from zero_insight.ai_providers.image.openai_image_provider import OpenAIImageProvider
-from zero_insight.ai_providers.image.replicate_image_provider import ReplicateImageProvider
-from zero_insight.ai_providers.image.stability_image_provider import StabilityImageProvider
-from zero_insight.ai_providers.text.anthropic_text_provider import AnthropicTextProvider
 from zero_insight.ai_providers.text.custom_text_provider import CustomTextProvider
-from zero_insight.ai_providers.text.gemini_text_provider import GeminiTextProvider
 from zero_insight.ai_providers.text.groq_text_provider import GroqTextProvider
 from zero_insight.ai_providers.text.mock_text_provider import MockTextProvider
 from zero_insight.ai_providers.text.openai_text_provider import OpenAITextProvider
 from zero_insight.ai_providers.vision.custom_vision_provider import CustomVisionProvider
-from zero_insight.ai_providers.vision.gemini_vision_provider import GeminiVisionProvider
 from zero_insight.ai_providers.vision.groq_vision_provider import GroqVisionProvider
 from zero_insight.ai_providers.vision.mock_vision_provider import MockVisionProvider
 from zero_insight.ai_providers.vision.openai_vision_provider import OpenAIVisionProvider
@@ -23,9 +27,9 @@ from zero_insight.ai_providers.vision.openai_vision_provider import OpenAIVision
 
 def list_ai_providers() -> dict[str, list[str]]:
     return {
-        "text": ["mock", "custom", "openai", "anthropic", "gemini", "groq"],
-        "image": ["local", "mock", "custom", "openai", "stability", "replicate"],
-        "vision": ["mock", "custom", "openai", "gemini", "groq"],
+        "text": ["mock", "custom", "openai", "groq"],
+        "image": ["local", "mock", "custom", "openai"],
+        "vision": ["mock", "custom", "openai", "groq"],
     }
 
 
@@ -36,8 +40,6 @@ def create_text_provider(config: ProviderConfig | None = None) -> TextProvider:
         "custom": CustomTextProvider,
         "openai": OpenAITextProvider,
         "groq": GroqTextProvider,
-        "anthropic": lambda _config: AnthropicTextProvider(),
-        "gemini": lambda _config: GeminiTextProvider(),
     }
     factory = mapping.get(config.provider_name)
     if not factory:
@@ -52,8 +54,6 @@ def create_image_provider(config: ProviderConfig | None = None) -> ImageProvider
         "local": LocalImageProvider,
         "custom": CustomImageProvider,
         "openai": OpenAIImageProvider,
-        "stability": lambda _config: StabilityImageProvider(),
-        "replicate": lambda _config: ReplicateImageProvider(),
     }
     factory = mapping.get(config.provider_name)
     if not factory:
@@ -68,7 +68,6 @@ def create_vision_provider(config: ProviderConfig | None = None) -> VisionProvid
         "custom": CustomVisionProvider,
         "openai": OpenAIVisionProvider,
         "groq": GroqVisionProvider,
-        "gemini": lambda _config: GeminiVisionProvider(),
     }
     factory = mapping.get(config.provider_name)
     if not factory:
@@ -76,38 +75,59 @@ def create_vision_provider(config: ProviderConfig | None = None) -> VisionProvid
     return factory(config)  # type: ignore[misc]
 
 
-def test_provider(kind: str, name: str) -> tuple[bool, str]:
-    _LOCAL_ONLY = {"mock", "local"}
+def _remote_config_ready(config: ProviderConfig) -> tuple[bool, str]:
+    if not resolve_api_key(config):
+        return False, "API key não configurada."
+    if config.provider_name != "openai" and not (config.endpoint or config.base_url):
+        return False, "Base URL ou endpoint não configurado."
+    if not config.model:
+        return False, "Modelo não configurado."
+    return True, "Configuração completa."
 
-    if kind == "text":
-        try:
-            provider = create_text_provider(ProviderConfig("text", name))
-        except ProviderError as exc:
-            return False, str(exc)
-        if name in _LOCAL_ONLY:
-            try:
-                provider.generate_text("Responda ok")
-                return True, f"text:{name} OK (local)"
-            except Exception as exc:
-                return False, str(exc)
-        return True, f"text:{name} registrado — requer chave de API para funcionar."
 
-    if kind == "image":
-        try:
-            provider = create_image_provider(ProviderConfig("image", name))
-        except ProviderError as exc:
-            return False, str(exc)
-        if name in _LOCAL_ONLY:
-            return True, f"image:{name} disponível sem API."
-        return True, f"image:{name} registrado — requer chave de API para funcionar."
+def test_provider(
+    kind: str,
+    name: str,
+    config: ProviderConfig | None = None,
+    prompt: str = "Responda apenas OK.",
+) -> tuple[bool, str]:
+    available = list_ai_providers()
+    if kind not in available:
+        return False, f"Tipo inválido: '{kind}'. Use text, image ou vision."
+    if name not in available[kind]:
+        return False, f"Provider {kind}:{name} não está implementado."
 
-    if kind == "vision":
-        try:
-            provider = create_vision_provider(ProviderConfig("vision", name))
-        except ProviderError as exc:
-            return False, str(exc)
+    config = config or ProviderConfig(kind, name)  # type: ignore[arg-type]
+    try:
+        if kind == "text":
+            provider = create_text_provider(config)
+            provider.generate_text(prompt)
+            return True, f"text:{name} respondeu com sucesso."
+
+        if kind == "image":
+            provider = create_image_provider(config)
+            if name in {"mock", "local"}:
+                with TemporaryDirectory() as directory:
+                    provider.generate_image(
+                        "Teste visual local.",
+                        64,
+                        64,
+                        Path(directory) / "provider_test.png",
+                    )
+                return True, f"image:{name} gerou uma imagem de teste."
+            ok, message = _remote_config_ready(config)
+            suffix = " Geração não executada para evitar cobrança." if ok else ""
+            return ok, f"image:{name}: {message}{suffix}"
+
+        provider = create_vision_provider(config)
         if name == "mock":
-            return True, "vision:mock disponível sem API."
-        return True, f"vision:{name} registrado — requer chave de API para funcionar."
-
-    return False, f"Tipo inválido: '{kind}'. Use text, image ou vision."
+            with TemporaryDirectory() as directory:
+                sample = Path(directory) / "sample.png"
+                create_image_provider().generate_image("amostra", 16, 16, sample)
+                provider.analyze_image(sample, prompt)
+            return True, "vision:mock respondeu com sucesso."
+        ok, message = _remote_config_ready(config)
+        suffix = " Análise não executada para evitar cobrança." if ok else ""
+        return ok, f"vision:{name}: {message}{suffix}"
+    except Exception as exc:
+        return False, str(exc)

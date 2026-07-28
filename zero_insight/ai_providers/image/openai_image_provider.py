@@ -56,7 +56,7 @@ class OpenAIImageProvider(ImageProvider):
         logo_path: str | None = None,
     ) -> Path:
         """Gera uma única imagem e salva em output_path."""
-        final_prompt = prompt if not negative_prompt else f"{prompt}\n\nAvoid: {negative_prompt}"
+        final_prompt = self._safe_prompt(prompt, negative_prompt)
         size = self._supported_size(width, height)
         client = self._client()
         response = self._api_call(client, final_prompt, size, n=1, logo_path=logo_path)
@@ -80,8 +80,15 @@ class OpenAIImageProvider(ImageProvider):
         client = self._client()
         output_dir.mkdir(parents=True, exist_ok=True)
         output_paths = [output_dir / f"{prefix}_{i:02d}_base.png" for i in range(1, count + 1)]
-        response = self._api_call(client, prompt, size, n=count, logo_path=logo_path)
-        return self._save_all(response, prompt, size, output_paths, logo_embedded=bool(logo_path and Path(logo_path).is_file()))
+        final_prompt = self._safe_prompt(prompt)
+        response = self._api_call(client, final_prompt, size, n=count, logo_path=logo_path)
+        return self._save_all(
+            response,
+            final_prompt,
+            size,
+            output_paths,
+            logo_embedded=bool(logo_path and Path(logo_path).is_file()),
+        )
 
     # ── Internos ──────────────────────────────────────────────────────────────
 
